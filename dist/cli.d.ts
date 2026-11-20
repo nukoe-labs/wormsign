@@ -13,6 +13,8 @@ export interface CommandLine {
     target: string;
     format: "text" | "json" | "sarif";
     maxBranches?: number;
+    /** The local folder to scan instead of GitHub, given with --path. */
+    path?: string;
 }
 /** Reads the command line arguments, or throws a RangeError with the usage when they are wrong. */
 export declare function parseArguments(argumentsList: string[]): CommandLine;

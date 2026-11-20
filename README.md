@@ -39,6 +39,7 @@ which branches, carry the worm, and is it back?**
 npx wormsign my-org                         # no install, no configuration
 GITHUB_TOKEN=$(gh auth token) npx wormsign my-org   # 5,000 requests per hour instead of 60
 npx wormsign owner/repo                     # check one repository BEFORE you clone it
+npx wormsign --path ./downloaded-project    # check a local folder BEFORE an agent or editor opens it
 npx wormsign my-org --json                  # for scripts
 npx wormsign my-org --sarif > wormsign.sarif # for the GitHub Security tab
 ```
