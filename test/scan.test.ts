@@ -55,7 +55,8 @@ function createVictimAnswers(): Record<string, FakeAnswer> {
     [`/repos/victim/async-engines-8480/commits/${DROP_HEAD}`]: body({ sha: DROP_HEAD, commit: { message: "AutoSyncComplete: x", committer: { date: PUSHED_AT } } }),
     "/repos/victim/clean": body(repository("clean", null)),
     "/repos/victim/clean/branches?per_page=20": body([{ name: "main", commit: { sha: CLEAN_HEAD } }]),
-    [`/repos/victim/clean/git/trees/${CLEAN_HEAD}?recursive=1`]: body({ tree: [{ path: "CLAUDE.md", type: "blob", size: 20 }] }),
+    // .mcp.json is listed in the tree but its contents answer 404, as when a file disappears between two requests.
+    [`/repos/victim/clean/git/trees/${CLEAN_HEAD}?recursive=1`]: body({ tree: [{ path: "CLAUDE.md", type: "blob", size: 20 }, { path: ".mcp.json", type: "blob", size: 20 }] }),
     [`/repos/victim/clean/contents/CLAUDE.md?ref=${CLEAN_HEAD}`]: body(encodeFile("Use two spaces.")),
     [`/repos/victim/clean/commits/${CLEAN_HEAD}`]: body({ sha: CLEAN_HEAD, commit: { message: "docs", committer: { date: "2026-01-01T00:00:00Z" } } }),
   };
