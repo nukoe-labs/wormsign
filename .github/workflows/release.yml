@@ -18,17 +18,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-      - run: npm ci
-      - run: npm run typecheck && npm run lint && npm run coverage && npm run build
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck && pnpm run lint && pnpm run coverage && pnpm run build
       - name: Check that the tag matches package.json
         env:
           TAG: ${{ github.event.release.tag_name }}
         run: test "v$(node -p 'require(\"./package.json\").version')" = "$TAG"
-      - run: npm pack
+      - run: pnpm pack
       - name: Sign the package with a build provenance attestation
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
@@ -38,7 +39,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name }}
         run: gh release upload "$TAG" wormsign-*.tgz --clobber
-      - name: Publish to npm with provenance
+      - name: Publish to the npm registry with provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
+        run: pnpm publish --provenance --access public --no-git-checks

@@ -32,8 +32,8 @@ Add a test in `test/rules.test.ts` with a real marker from the report, and a tes
 **not** matched. Then:
 
 ```sh
-npm ci
-npm run typecheck && npm run lint && npm run coverage && npm run build
+pnpm install --frozen-lockfile
+pnpm run typecheck && pnpm run lint && pnpm run coverage && pnpm run build
 ```
 
 Coverage must stay at 100 %.
@@ -47,4 +47,4 @@ Coverage must stay at 100 %.
 ## 5. Open the pull request (10 minutes)
 
 Title: `signature: <worm name>`. Paste the source link, the command you ran and its output. Commit `dist/` too
-(the GitHub Action runs from it): `npm run build && git add dist`.
+(the GitHub Action runs from it): `pnpm run build && git add dist`.
