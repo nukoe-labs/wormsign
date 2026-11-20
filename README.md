@@ -10,7 +10,8 @@
 GitHub API only. Nothing is cloned, nothing is run.**
 
 ```sh
-npx wormsign <user | organization | owner/repo>
+pnpm dlx wormsign <user | organization | owner/repo>
+# or: npx wormsign <user | organization | owner/repo>
 ```
 
 ![wormsign finds a Miasma infection in a repository named in a public SafeDep report](docs/demo.gif)
@@ -36,13 +37,15 @@ which branches, carry the worm, and is it back?**
 ## Install and run
 
 ```sh
-npx wormsign my-org                         # no install, no configuration
-GITHUB_TOKEN=$(gh auth token) npx wormsign my-org   # 5,000 requests per hour instead of 60
-npx wormsign owner/repo                     # check one repository BEFORE you clone it
-npx wormsign --path ./downloaded-project    # check a local folder BEFORE an agent or editor opens it
-npx wormsign my-org --json                  # for scripts
-npx wormsign my-org --sarif > wormsign.sarif # for the GitHub Security tab
+pnpm dlx wormsign my-org                               # no install, no configuration
+GITHUB_TOKEN=$(gh auth token) pnpm dlx wormsign my-org # 5,000 requests per hour instead of 60
+pnpm dlx wormsign owner/repo                           # check one repository BEFORE you clone it
+pnpm dlx wormsign --path ./downloaded-project          # check a local folder BEFORE an agent or editor opens it
+pnpm dlx wormsign my-org --json                        # for scripts
+pnpm dlx wormsign my-org --sarif > wormsign.sarif      # for the GitHub Security tab
 ```
+
+Without pnpm, `npx` works the same way: `npx wormsign my-org`.
 
 | Exit code | Meaning |
 |---|---|
@@ -188,7 +191,7 @@ configuration files are downloaded.
 **Why not clone and scan?** Cloning writes the worm to your disk, where an editor or agent can run it by mistake. The
 API lets you check a repository before it ever reaches your computer.
 
-**Why Node.js?** `npx` runs it everywhere without installation, the same code runs in a browser, and it has zero
+**Why Node.js?** `pnpm dlx` or `npx` runs it everywhere without installation, the same code runs in a browser, and it has zero
 runtime dependencies to audit.
 
 **What about GitLab or Bitbucket?** Not yet. A pull request that adds another API behind the same rules is welcome.

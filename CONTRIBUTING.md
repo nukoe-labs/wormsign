@@ -5,11 +5,11 @@ Thank you for helping. Every change follows the same path: an issue, a branch, a
 ## Setup
 
 ```sh
-npm ci
-npm run typecheck
-npm run lint
-npm run coverage   # 100% lines, branches, functions and statements are required
-npm run build
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm run lint
+pnpm run coverage   # 100% lines, branches, functions and statements are required
+pnpm run build
 ```
 
 ## Adding a rule

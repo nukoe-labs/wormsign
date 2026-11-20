@@ -36,8 +36,8 @@ If one of them exists, reinstall the computer. Cleaning by hand often leaves a w
 
 ## 4. Clean the repositories
 
-1. Run `npx wormsign <your-account>` again and list every repository **and every branch** it reports. Worms arm
-   feature branches too; a branch that nobody uses is still cloned by others.
+1. Run `pnpm dlx wormsign <your-account>` (or `npx wormsign <your-account>`) again and list every repository
+   **and every branch** it reports. Worms arm feature branches too; a branch that nobody uses is still cloned by others.
 2. Remove the files with a normal commit on each branch. Do not rewrite history before step 3 is done.
 3. Delete the exfiltration repositories (random names such as `smart-workers-48213`, description `project-utils`,
    `Sha1-Hulud: The Second Coming.` or `Shai-Hulud: Here We Go Again`): they hold your stolen secrets, encrypted
