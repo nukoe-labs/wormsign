@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-20T01:17:57.355Z",
+  "date": "2026-11-20T01:30:56.921Z",
   "repositoriesPerOrganization": 20,
   "branchesPerRepository": 3,
   "results": [
@@ -62,6 +62,54 @@
       "repositories": 20,
       "wormSigns": [],
       "notes": 0
+    },
+    {
+      "organization": "sveltejs",
+      "repositories": 20,
+      "wormSigns": [],
+      "notes": 3
+    },
+    {
+      "organization": "vuejs",
+      "repositories": 20,
+      "wormSigns": [],
+      "notes": 0
+    },
+    {
+      "organization": "nuxt",
+      "repositories": 20,
+      "wormSigns": [],
+      "notes": 0
+    },
+    {
+      "organization": "remix-run",
+      "repositories": 20,
+      "wormSigns": [],
+      "notes": 0
+    },
+    {
+      "organization": "honojs",
+      "repositories": 16,
+      "wormSigns": [],
+      "notes": 0
+    },
+    {
+      "organization": "drizzle-team",
+      "repositories": 20,
+      "wormSigns": [],
+      "notes": 0
+    },
+    {
+      "organization": "trpc",
+      "repositories": 15,
+      "wormSigns": [],
+      "notes": 0
+    },
+    {
+      "organization": "TanStack",
+      "repositories": 20,
+      "wormSigns": [],
+      "notes": 3
     }
   ]
 }

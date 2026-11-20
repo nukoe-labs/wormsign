@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createGitHubClient, decodeBase64Text, getFileText, readWaitMilliseconds } from "../src/github.js";
+import { createGitHubClient, decodeBase64Text, getFileText, getTree, readWaitMilliseconds } from "../src/github.js";
 import { scan } from "../src/index.js";
 import { createFakeFetch } from "./fake-github.js";
 
@@ -92,6 +92,9 @@ async function skipsSymbolicLinks(): Promise<void> {
   const answers = { "/repos/o/r/contents/CLAUDE.md?ref=abc": { body: { type: "symlink", target: "AGENTS.md" } } };
   const client = createGitHubClient({ fetch: createFakeFetch(answers) });
   expect(await getFileText(client, "o/r", "CLAUDE.md", "abc")).toBeUndefined();
+  expect(await getTree(client, "o/r", "missing")).toEqual([]);
+  const failing = createGitHubClient({ fetch: createFakeFetch({ "/repos/o/r/git/trees/x?recursive=1": { status: 500 } }) });
+  await expect(getTree(failing, "o/r", "x")).rejects.toThrow("GitHub answered 500");
 }
 
 /** Checks that the scan reports each repository before reading it. */

@@ -163,10 +163,18 @@ function hasName(this: string, branch: BranchInfo): boolean {
   return branch.name === this;
 }
 
-/** Reads the full file tree of a commit, without downloading any file. */
+/** Reads the full file tree of a commit, without downloading any file; a tree that GitHub cannot find is empty. */
 export async function getTree(client: GitHubClient, fullName: string, sha: string): Promise<TreeEntry[]> {
-  const tree = await client.getJson<{ tree: TreeEntry[] }>(`/repos/${fullName}/git/trees/${sha}?recursive=1`);
-  return tree.tree;
+  try {
+    const tree = await client.getJson<{ tree: TreeEntry[] }>(`/repos/${fullName}/git/trees/${sha}?recursive=1`);
+    return tree.tree;
+  } catch (error) {
+    const treeIsMissing = error instanceof GitHubError && error.status === NOT_FOUND_STATUS;
+    if (treeIsMissing) {
+      return [];
+    }
+    throw error;
+  }
 }
 
 /** Turns the base64 content sent by GitHub into text, the same way in Node.js and in a browser. */
