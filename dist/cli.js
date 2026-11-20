@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { formatJson, formatSarif, formatText, isWormSign, scan } from "./index.js";
+import { formatJson, formatSarif, formatText, isWormSign, scan, scanDirectory } from "./index.js";
 /** The version printed in reports, kept equal to the one in package.json. */
 export const VERSION = "1.0.0";
 /** The exit code when no finding was found. */
@@ -11,9 +11,11 @@ export const EXIT_FINDINGS = 1;
 /** The exit code when the scan could not run. */
 export const EXIT_ERROR = 2;
 const USAGE = `Usage: wormsign <owner | owner/repo> [--json | --sarif] [--max-branches <n>]
+       wormsign --path <folder> [--json | --sarif]
 
 Scans GitHub repositories for agent worms (Miasma, Mini Shai-Hulud) through the API only:
-nothing is cloned, nothing is run. Set GITHUB_TOKEN (for example: GITHUB_TOKEN=$(gh auth token)).`;
+nothing is cloned, nothing is run. Set GITHUB_TOKEN (for example: GITHUB_TOKEN=$(gh auth token)).
+With --path, reads the agent configuration files of a local folder instead, before an agent opens it.`;
 /** Reads the value of --max-branches and checks that it is a positive whole number. */
 function readMaxBranches(value) {
     const maxBranches = Number(value);
@@ -21,6 +23,13 @@ function readMaxBranches(value) {
         throw new RangeError("--max-branches needs a whole number of at least 1.");
     }
     return maxBranches;
+}
+/** Reads the value of --path and checks that a folder was given. */
+function readPath(value) {
+    if (value === undefined || value === "") {
+        throw new RangeError("--path needs a folder.");
+    }
+    return value;
 }
 /** Reads the command line arguments, or throws a RangeError with the usage when they are wrong. */
 export function parseArguments(argumentsList) {
@@ -34,6 +43,10 @@ export function parseArguments(argumentsList) {
             index += 1;
             commandLine.maxBranches = readMaxBranches(argumentsList[index]);
         }
+        else if (argument === "--path") {
+            index += 1;
+            commandLine.path = readPath(argumentsList[index]);
+        }
         else if (commandLine.target === "" && argument !== undefined && !argument.startsWith("-")) {
             commandLine.target = argument;
         }
@@ -41,7 +54,8 @@ export function parseArguments(argumentsList) {
             throw new RangeError(USAGE);
         }
     }
-    if (commandLine.target === "") {
+    const hasOneTarget = (commandLine.target === "") !== (commandLine.path === undefined);
+    if (!hasOneTarget) {
         throw new RangeError(USAGE);
     }
     return commandLine;
@@ -68,12 +82,20 @@ export function buildScanOptions(commandLine, environment) {
     }
     return options;
 }
+/** Scans the local folder given with --path, or the GitHub owner or repository given as target. */
+async function scanTarget(commandLine, environment) {
+    if (commandLine.path !== undefined) {
+        const findings = await scanDirectory(commandLine.path);
+        return { findings, scannedRepositories: 1 };
+    }
+    const options = buildScanOptions(commandLine, environment);
+    return scan(commandLine.target, options);
+}
 /** Runs the command and returns its exit code; errors are written, never thrown. */
 export async function run(argumentsList, environment, output) {
     try {
         const commandLine = parseArguments(argumentsList);
-        const options = buildScanOptions(commandLine, environment);
-        const result = await scan(commandLine.target, options);
+        const result = await scanTarget(commandLine, environment);
         output.write(formatResult(result, commandLine.format, output.useColor === true));
         const hasWormSign = result.findings.some(isWormSign);
         return hasWormSign ? EXIT_FINDINGS : EXIT_CLEAN;
