@@ -1,17 +1,37 @@
-# Ce fichier demande à Dependabot de proposer chaque semaine les mises à jour des actions GitHub et des dépendances.
+# Dependabot opens one grouped pull request per ecosystem every Monday morning,
+# with major updates kept apart from minor and patch updates.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Paris
     groups:
-      actions:
-        patterns: ["*"]
+      actions-minor-and-patch:
+        update-types: [minor, patch]
+      actions-major:
+        update-types: [major]
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "07:00"
+      timezone: Europe/Paris
     groups:
-      dependances:
-        patterns: ["*"]
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+      npm-major:
+        update-types: [major]
+    ignore:
+      # typescript-eslint 8 only accepts TypeScript below 6.1, so TypeScript 7 breaks npm ci (ERESOLVE).
+      - dependency-name: typescript
+        versions: [">=7"]
+      # Vitest 5 needs Node.js 22.12 or later, and the package still supports Node.js 20.
+      - dependency-name: vitest
+        versions: [">=5"]
+      - dependency-name: "@vitest/coverage-v8"
+        versions: [">=5"]
