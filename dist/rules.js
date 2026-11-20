@@ -118,80 +118,425 @@ export function findMcpCommands(configText) {
     const servers = config.mcpServers ?? config.servers;
     return collectCommands(servers);
 }
-/** The shape of a TOML table header, such as [mcp_servers.local]. */
-const TOML_TABLE = /^\s*\[([^\]]+)\]\s*(?:#.*)?$/u;
-/** The shape of a TOML assignment whose value is written on the same line. */
-const TOML_COMMAND = /^\s*command\s*=\s*(.*)$/u;
-/** The shape of a Codex table that declares one MCP server, quoted name included. */
-const MCP_SERVER_TABLE = /^mcp_servers\.(?:[A-Za-z0-9_-]+|"[^"]*"|'[^']*')$/u;
-/** Returns the name inside a TOML table header, or undefined for any other line. */
-function readTableHeader(line) {
-    return TOML_TABLE.exec(line)?.[1]?.trim();
-}
-/** Tells whether a table header declares one MCP server: [mcp_servers.local], not [mcp_servers.local.env]. */
-function isMcpServerTable(header) {
-    return MCP_SERVER_TABLE.test(header);
-}
-/** Reads a one-line TOML string, undoing \" and \\ inside a basic string, or returns undefined when the value is not one. */
-function readTomlString(value) {
-    const delimiter = value.charAt(0);
-    const isBasicString = delimiter === "\"";
-    if (!isBasicString && delimiter !== "'") {
+/** The characters a TOML bare key is made of. */
+const TOML_BARE_KEY = /[A-Za-z0-9_-]/u;
+/** The shape of the hexadecimal digits of a TOML unicode escape. */
+const TOML_HEX_ESCAPE = /^[0-9A-Fa-f]+$/u;
+/** The characters a basic string escape stands for, other than the unicode ones. */
+const TOML_ESCAPES = {
+    b: "\b",
+    t: "\t",
+    n: "\n",
+    f: "\f",
+    r: "\r",
+    '"': '"',
+    "\\": "\\",
+};
+/** The deepest chain of inline tables the reader looks into; a Codex server needs one. */
+const TOML_INLINE_DEPTH = 8;
+/** The whitespace a line-ending backslash of a multi-line string swallows. */
+const TOML_BLANK = /[ \t\r\n]/u;
+/**
+ * Reads the text of a Codex TOML file one key path and value at a time, so that every spelling of a
+ * key is read the same way: quoted keys, dotted keys, keys with spaces around the dot, multi-line
+ * strings and inline tables.
+ */
+class TomlReader {
+    text;
+    index = 0;
+    /** Takes the text to read. */
+    constructor(text) {
+        this.text = text;
+    }
+    /** Returns every entry of the file, with the table path that encloses it in front of its own key. */
+    readDocument() {
+        const entries = [];
+        let tablePath = [];
+        while (this.index < this.text.length) {
+            this.skipInsignificant();
+            if (this.index >= this.text.length) {
+                return entries;
+            }
+            if (this.text.charAt(this.index) === "[") {
+                tablePath = this.readTableHeader() ?? [];
+                continue;
+            }
+            const entry = this.readAssignment(0);
+            if (entry === undefined) {
+                this.skipToNextLine();
+                continue;
+            }
+            entries.push({ path: tablePath.concat(entry.path), value: entry.value });
+        }
+        return entries;
+    }
+    /** Reads a table header and returns its key path, or undefined when this line does not hold one. */
+    readTableHeader() {
+        this.index += 1;
+        if (this.text.charAt(this.index) === "[") {
+            this.skipToNextLine();
+            return undefined;
+        }
+        const path = this.readKeyPath();
+        if (path === undefined || this.text.charAt(this.index) !== "]") {
+            this.skipToNextLine();
+            return undefined;
+        }
+        this.index += 1;
+        if (!this.atLineEnd()) {
+            this.skipToNextLine();
+            return undefined;
+        }
+        return path;
+    }
+    /** Tells whether only spaces and an optional comment remain on the current line. */
+    atLineEnd() {
+        this.skipSpaces();
+        const character = this.text.charAt(this.index);
+        return character === "" || character === "\n" || character === "\r" || character === "#";
+    }
+    /** Reads one key = value statement of the given inline table depth, or returns undefined when the text here does not hold one. */
+    readAssignment(depth) {
+        const path = this.readKeyPath();
+        if (path === undefined || this.text.charAt(this.index) !== "=") {
+            return undefined;
+        }
+        this.index += 1;
+        this.skipSpaces();
+        const value = this.readValue(depth);
+        return value === undefined ? undefined : { path, value };
+    }
+    /** Reads a key path of one or more segments, separated by dots with any spaces around them. */
+    readKeyPath() {
+        const path = [];
+        while (true) {
+            this.skipSpaces();
+            const segment = this.readKeySegment();
+            if (segment === undefined) {
+                return undefined;
+            }
+            path.push(segment);
+            this.skipSpaces();
+            if (this.text.charAt(this.index) !== ".") {
+                return path;
+            }
+            this.index += 1;
+        }
+    }
+    /** Reads one key segment: a bare key, or a quoted one that may hold dots and spaces. */
+    readKeySegment() {
+        const opener = this.text.charAt(this.index);
+        if (opener === '"' || opener === "'") {
+            return this.readSingleLineString();
+        }
+        let end = this.index;
+        while (TOML_BARE_KEY.test(this.text.charAt(end))) {
+            end += 1;
+        }
+        if (end === this.index) {
+            return undefined;
+        }
+        const segment = this.text.slice(this.index, end);
+        this.index = end;
+        return segment;
+    }
+    /** Reads one value at the given inline table depth, keeping the text of a string and the entries of an inline table. */
+    readValue(depth) {
+        const opener = this.text.charAt(this.index);
+        if (opener === '"' || opener === "'") {
+            if (this.text.startsWith(opener.repeat(3), this.index)) {
+                return this.readMultiLineString();
+            }
+            const value = this.readSingleLineString();
+            return value === undefined ? undefined : { kind: "string", value };
+        }
+        if (opener === "{") {
+            if (depth >= TOML_INLINE_DEPTH) {
+                this.skipInlineTable(depth);
+                return { kind: "other" };
+            }
+            return this.readInlineTable(depth);
+        }
+        this.skipBareValue(depth);
+        return { kind: "other" };
+    }
+    /** Reads a basic or literal string that has to close on this line, or returns undefined. */
+    readSingleLineString() {
+        const delimiter = this.text.charAt(this.index);
+        const isBasic = delimiter === '"';
+        this.index += 1;
+        let result = "";
+        while (this.index < this.text.length) {
+            const step = this.readLineStringStep(delimiter, isBasic);
+            if (step.status === "unterminated") {
+                return undefined;
+            }
+            result += step.text;
+            if (step.status === "closed") {
+                return result;
+            }
+        }
         return undefined;
     }
-    let result = "";
-    let index = 1;
-    while (index < value.length) {
-        const character = value.charAt(index);
-        if (isBasicString && character === "\\") {
-            const escaped = value.charAt(index + 1);
-            result += escaped === "\\" || escaped === "\"" ? escaped : `\\${escaped}`;
-            index += 2;
-            continue;
+    /** Reads one character of a single-line string, or its closing quote, and reports what it added. */
+    readLineStringStep(delimiter, isBasic) {
+        const character = this.text.charAt(this.index);
+        if (character === "" || character === "\n" || character === "\r") {
+            return { text: "", status: "unterminated" };
         }
         if (character === delimiter) {
-            return result;
+            this.index += 1;
+            return { text: "", status: "closed" };
         }
-        result += character;
-        index += 1;
+        if (isBasic && character === "\\") {
+            const escaped = this.readEscapeInLine();
+            if (escaped === undefined) {
+                return { text: "", status: "unterminated" };
+            }
+            return { text: escaped, status: "inside" };
+        }
+        this.index += 1;
+        return { text: character, status: "inside" };
     }
-    return undefined;
-}
-/** Returns the command of an MCP server table line, or undefined when the line holds no non-empty command string. */
-function readTomlCommand(line) {
-    const value = TOML_COMMAND.exec(line)?.[1];
-    if (value === undefined) {
+    /** Reads one escape sequence of a single-line string, or returns undefined when it runs off the line. */
+    readEscapeInLine() {
+        const escaped = this.text.charAt(this.index + 1);
+        if (escaped === "" || escaped === "\n" || escaped === "\r") {
+            return undefined;
+        }
+        return this.readEscape();
+    }
+    /** Reads one escape sequence and returns the characters it stands for, keeping an escape TOML does not define as written. */
+    readEscape() {
+        const escaped = this.text.charAt(this.index + 1);
+        if (escaped === "u") {
+            return this.readUnicodeEscape(4);
+        }
+        if (escaped === "U") {
+            return this.readUnicodeEscape(8);
+        }
+        this.index += 2;
+        const shared = TOML_ESCAPES[escaped];
+        return shared === undefined ? "\\" + escaped : shared;
+    }
+    /** Reads a unicode escape of four or eight hexadecimal digits, so an escaped letter still spells the same key. */
+    readUnicodeEscape(digits) {
+        const marker = this.text.charAt(this.index + 1);
+        const hex = this.text.slice(this.index + 2, this.index + 2 + digits);
+        const code = Number.parseInt(hex, 16);
+        if (hex.length !== digits || !TOML_HEX_ESCAPE.test(hex) || isNotScalar(code)) {
+            this.index += 2;
+            return "\\" + marker;
+        }
+        this.index += 2 + digits;
+        return String.fromCodePoint(code);
+    }
+    /** Reads a string that opens with three quotes and may run over several lines, or returns undefined when it never closes. */
+    readMultiLineString() {
+        const delimiter = this.text.charAt(this.index);
+        const isBasic = delimiter === '"';
+        this.index += 3;
+        this.skipOpeningLineBreak();
+        const value = this.readMultiLinePart(delimiter, isBasic);
+        return value === undefined ? undefined : { kind: "string", value };
+    }
+    /** Reads the text of a multi-line string up to and including its closing three quotes, or returns undefined at the end of the file. */
+    readMultiLinePart(delimiter, isBasic) {
+        let result = "";
+        while (this.index < this.text.length) {
+            const step = this.readMultiLineStep(delimiter, isBasic);
+            result += step.text;
+            if (step.status === "closed") {
+                return result;
+            }
+        }
         return undefined;
     }
-    const command = readTomlString(value.trim());
-    return command === "" ? undefined : command;
+    /** Reads one character of a multi-line string, or its closing quotes, and reports what it added. */
+    readMultiLineStep(delimiter, isBasic) {
+        const character = this.text.charAt(this.index);
+        if (isBasic && character === "\\") {
+            const escaped = this.text.charAt(this.index + 1);
+            if (escaped === "\n" || escaped === "\r") {
+                this.skipContinuation();
+                return { text: "", status: "inside" };
+            }
+            return { text: this.readEscape(), status: "inside" };
+        }
+        if (character !== delimiter) {
+            this.index += 1;
+            return { text: character, status: "inside" };
+        }
+        const quotes = this.countQuotes(delimiter);
+        this.index += quotes;
+        if (quotes >= 3) {
+            return { text: delimiter.repeat(quotes - 3), status: "closed" };
+        }
+        return { text: delimiter.repeat(quotes), status: "inside" };
+    }
+    /** Skips a line-ending backslash and the whitespace after it, which TOML drops from a multi-line string. */
+    skipContinuation() {
+        this.index += 1;
+        while (TOML_BLANK.test(this.text.charAt(this.index))) {
+            this.index += 1;
+        }
+    }
+    /** Counts the quote characters at the cursor, where three of them close a multi-line string. */
+    countQuotes(delimiter) {
+        let quotes = 0;
+        while (this.text.charAt(this.index + quotes) === delimiter) {
+            quotes += 1;
+        }
+        return quotes;
+    }
+    /** Drops the line break that may follow the opening quotes of a multi-line string, as TOML does. */
+    skipOpeningLineBreak() {
+        if (this.text.charAt(this.index) === "\r") {
+            this.index += 1;
+        }
+        if (this.text.charAt(this.index) === "\n") {
+            this.index += 1;
+        }
+    }
+    /** Reads an inline table of the given depth, whose keys keep their own paths inside it. */
+    readInlineTable(depth) {
+        this.index += 1;
+        const entries = [];
+        while (this.index < this.text.length) {
+            this.skipInsignificant();
+            if (this.text.charAt(this.index) === "}") {
+                this.index += 1;
+                return { kind: "table", entries };
+            }
+            const entry = this.readAssignment(depth + 1);
+            if (entry === undefined) {
+                this.skipToNextLine();
+                continue;
+            }
+            entries.push(entry);
+            this.skipSeparator();
+        }
+        return { kind: "table", entries };
+    }
+    /** Skips the comma that separates two entries of an inline table. */
+    skipSeparator() {
+        this.skipInsignificant();
+        if (this.text.charAt(this.index) === ",") {
+            this.index += 1;
+        }
+    }
+    /** Skips one inline table without reading it, so a key written after it stays readable. */
+    skipInlineTable(depth) {
+        let opened = 0;
+        while (this.index < this.text.length) {
+            const character = this.text.charAt(this.index);
+            if (character === '"' || character === "'") {
+                this.readValue(depth);
+                continue;
+            }
+            if (character === "#") {
+                this.skipToNextLine();
+                continue;
+            }
+            if (character === "{") {
+                opened += 1;
+            }
+            if (character === "}") {
+                opened -= 1;
+            }
+            this.index += 1;
+            if (opened === 0) {
+                return;
+            }
+        }
+    }
+    /** Skips a value that is neither a string nor an inline table, to the end of its line or past the array it opens. */
+    skipBareValue(depth) {
+        let opened = 0;
+        while (this.index < this.text.length) {
+            const character = this.text.charAt(this.index);
+            if (character === "\n" && opened === 0) {
+                return;
+            }
+            if (character === "#" && opened === 0) {
+                return;
+            }
+            if (character === "#") {
+                this.skipToNextLine();
+                continue;
+            }
+            if (character === '"' || character === "'") {
+                this.readValue(depth);
+                continue;
+            }
+            if (character === "[" || character === "{") {
+                opened += 1;
+            }
+            if (character === "]" || character === "}") {
+                opened -= 1;
+            }
+            this.index += 1;
+        }
+    }
+    /** Skips the spaces and tabs that separate two tokens on one line. */
+    skipSpaces() {
+        while (this.text.charAt(this.index) === " " || this.text.charAt(this.index) === "\t") {
+            this.index += 1;
+        }
+    }
+    /** Skips the spaces, line breaks and comments between two statements. */
+    skipInsignificant() {
+        while (this.index < this.text.length) {
+            const character = this.text.charAt(this.index);
+            if (character === "#") {
+                this.skipToNextLine();
+                continue;
+            }
+            if (character !== "\n" && character !== "\r" && character !== " " && character !== "\t") {
+                return;
+            }
+            this.index += 1;
+        }
+    }
+    /** Skips the rest of the current line and the line break after it. */
+    skipToNextLine() {
+        while (this.index < this.text.length && this.text.charAt(this.index) !== "\n") {
+            this.index += 1;
+        }
+        this.index += 1;
+    }
+}
+/** Tells whether a code point is one TOML cannot spell in an escape: above the last one, or a surrogate. */
+function isNotScalar(code) {
+    return code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff);
+}
+/** Tells whether a key path is the command of one local MCP server, and not of a sub-table such as its env. */
+function isServerCommand(path) {
+    return path.length === 3 && path[0] === "mcp_servers" && path[2] === "command";
+}
+/** Adds the commands a list of TOML entries declares, looking inside the inline tables it holds. */
+function collectTomlCommands(entries, prefix, commands) {
+    for (const entry of entries) {
+        const path = prefix.concat(entry.path);
+        if (entry.value.kind === "table") {
+            collectTomlCommands(entry.value.entries, path, commands);
+            continue;
+        }
+        if (entry.value.kind === "string" && entry.value.value !== "" && isServerCommand(path)) {
+            commands.push(entry.value.value);
+        }
+    }
 }
 /**
  * Returns the commands of the local MCP servers declared in a Codex TOML file.
- * Only `command` keys written directly in a `[mcp_servers.<name>]` table count, so the
- * same key inside a sub-table such as `[mcp_servers.<name>.env]` is not mistaken for one.
- * A line that opens a table without closing it ends the current table, so a command below a
- * broken header is not credited to the server above it.
- * Inline tables (`name = { command = "..." }`) are not read: no worm sample uses them.
+ * Every spelling of the same key counts: a dotted key, a quoted key, spaces around the dot, a
+ * multi-line string, an inline table. Only a command key three levels deep under mcp_servers
+ * counts, so the same key inside a sub-table such as [mcp_servers.<name>.env] is not mistaken
+ * for one, and a table header broken over two lines credits nothing to the server above it.
  */
 export function findMcpTomlCommands(text) {
     const commands = [];
-    let inServerTable = false;
-    for (const line of text.split(/\r?\n/u)) {
-        const header = readTableHeader(line);
-        if (header !== undefined) {
-            inServerTable = isMcpServerTable(header);
-            continue;
-        }
-        if (line.trimStart().startsWith("[")) {
-            inServerTable = false;
-            continue;
-        }
-        const command = inServerTable ? readTomlCommand(line) : undefined;
-        if (command !== undefined) {
-            commands.push(command);
-        }
-    }
+    collectTomlCommands(new TomlReader(text).readDocument(), [], commands);
     return commands;
 }
 /** Tells whether a text contains invisible or text-direction characters. */

@@ -77,7 +77,6 @@ function findsCodexMcpCommands(): void {
     "[project]",
     'command = "not a server"',
     "[mcp_servers]",
-    'local = { command = "an inline table" }',
   ].join("\n");
   expect(findMcpTomlCommands(notServers)).toEqual([]);
   const oddValues = [
@@ -89,7 +88,7 @@ function findsCodexMcpCommands(): void {
     'command = "unterminated',
     "args = [\"scripts/setup.js\"]",
   ].join("\n");
-  expect(findMcpTomlCommands(oddValues)).toEqual(['node "x" C:\\tools', "a\\nb"]);
+  expect(findMcpTomlCommands(oddValues)).toEqual(['node "x" C:\\tools', "a\nb"]);
   const brokenTables = [
     "[mcp_servers.local",
     'command = "node"',
@@ -102,6 +101,98 @@ function findsCodexMcpCommands(): void {
   expect(findMcpTomlCommands("not toml at all")).toEqual([]);
 }
 
+/** Checks that every TOML spelling of one server command is read, so no quoting hides it. */
+function findsEverySpellingOfAnMcpCommand(): void {
+  const spellings = [
+    ["[mcp_servers.a]", 'command = """bash"""'],
+    ["[mcp_servers.a]", "command = '''bash'''"],
+    ["[mcp_servers . a]", 'command = "bash"'],
+    ["[mcp_servers.a]", '"command" = "bash"'],
+    ["[mcp_servers]", 'a.command = "bash"'],
+    ['mcp_servers.a.command = "bash"'],
+    ["[mcp_servers]", 'a = { command = "bash" }'],
+    ["[mcp_servers]", 'a = { command = "bash", args = ["-y"] }'],
+    ['mcp_servers = { a = { command = "bash" } }'],
+    ["[mcp_servers]", "a = {", 'command = "bash",', "}"],
+  ];
+  for (const lines of spellings) {
+    expect(findMcpTomlCommands(lines.join("\n"))).toEqual(["bash"]);
+  }
+}
+
+/** Checks that a multi-line string runs to its closing quotes, and that a literal string keeps its backslashes. */
+function readsMultiLineStringsToTheirClosingQuotes(): void {
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = """', 'bash"""'].join("\n"))).toEqual(["bash"]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = """\r\nbash"""'].join("\n"))).toEqual(["bash"]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = """bash'].join("\n"))).toEqual([]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = """bash', '"""'].join("\n"))).toEqual(["bash\n"]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = """ba\\"sh"""'].join("\n"))).toEqual(['ba"sh']);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = """a"b"""'].join("\n"))).toEqual(['a"b']);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = """"bash""""'].join("\n"))).toEqual(['"bash"']);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", "command = '''C:\\tools'''"].join("\n"))).toEqual(["C:\\tools"]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", "command = '''bash", "'''"].join("\n"))).toEqual(["bash\n"]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = """ba\\', '   sh"""'].join("\n"))).toEqual(["bash"]);
+}
+
+/** Checks that tables which do not declare one local server are ignored, whatever they hold. */
+function ignoresTablesThatAreNotAnMcpServer(): void {
+  expect(findMcpTomlCommands(["[mcp_servers.a.env]", 'command = "bash"'].join("\n"))).toEqual([]);
+  expect(findMcpTomlCommands(["[mcp_servers]", 'command = "bash"'].join("\n"))).toEqual([]);
+  expect(findMcpTomlCommands(["[[mcp_servers.a]]", 'command = "bash"'].join("\n"))).toEqual([]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'env = { command = "bash" }'].join("\n"))).toEqual([]);
+  expect(findMcpTomlCommands(["[mcp_servers]", 'a = { url = "https://example.com/mcp" }'].join("\n"))).toEqual([]);
+  expect(findMcpTomlCommands(["[mcp_servers]", 'a.env.command = "bash"'].join("\n"))).toEqual([]);
+  expect(findMcpTomlCommands(["[mcp_servers.a] junk", 'command = "bash"'].join("\n"))).toEqual([]);
+}
+
+
+/** Checks that a line which is not a statement is skipped, and that a broken value does not hide the next one. */
+function readsPastLinesThatAreNotStatements(): void {
+  expect(findMcpTomlCommands(["! nonsense", "[mcp_servers.a]", 'command = "bash"'].join("\n"))).toEqual(["bash"]);
+  expect(findMcpTomlCommands(["[mcp_servers]", "a = { ! }", "[mcp_servers.b]", 'command = "bash"'].join("\n"))).toEqual(["bash"]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = "abc\\', 'command = "bash"'].join("\n"))).toEqual(["bash"]);
+  expect(findMcpTomlCommands('mcp_servers.a.command = "bash')).toEqual([]);
+}
+
+/** Checks that a letter written as a unicode escape still spells the key, and that a deep chain of inline tables is not read. */
+function readsEscapedKeysAndDeepInlineTables(): void {
+  expect(findMcpTomlCommands(["[mcp_servers.a]", '"comm\\u0061nd" = "bash"'].join("\n"))).toEqual(["bash"]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", '"comm\\U00000061nd" = "bash"'].join("\n"))).toEqual(["bash"]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = "\\uZZZZ"'].join("\n"))).toEqual(["\\uZZZZ"]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = "\\U00110000"'].join("\n"))).toEqual(["\\U00110000"]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = "\\ud800"'].join("\n"))).toEqual(["\\ud800"]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", '"comm\\uZZZZnd" = "bash"'].join("\n"))).toEqual([]);
+  expect(findMcpTomlCommands(["[mcp_servers.a]", 'command = "\\q"'].join("\n"))).toEqual(["\\q"]);
+  expect(findMcpTomlCommands(["[mcp_servers]", 'a = { b = { c = { d = { e = { f = { g = { h = { i = { value = 0 } } } } } } } }, command = "bash" }'].join("\n"))).toEqual(["bash"]);
+  expect(findMcpTomlCommands(["[mcp_servers]", 'a = { b = { c = { d = { e = { f = { g = { h = { i = { command = "bash" } } } } } } } } }'].join("\n"))).toEqual([]);
+}
+
+/** Checks that an array spanning several lines is consumed whole, so its text cannot pass for a table header. */
+function readsPastArraysThatSpanLines(): void {
+  const hiddenHeader = [
+    "[mcp_servers.a]",
+    "args = [",
+    '  """',
+    "[mcp_servers.a.env]",
+    '  """,',
+    "]",
+    'command = "bash"',
+  ].join("\n");
+  expect(findMcpTomlCommands(hiddenHeader)).toEqual(["bash"]);
+  const commented = ["[mcp_servers.a]", "args = [", "  # a ] bracket in a comment", '  "x",', "]", 'command = "bash"'].join("\n");
+  expect(findMcpTomlCommands(commented)).toEqual(["bash"]);
+  const commentedAtEnd = ["[mcp_servers.a]", "args = 5 # a comment", 'command = "bash"'].join("\n");
+  expect(findMcpTomlCommands(commentedAtEnd)).toEqual(["bash"]);
+  const braceInComment = [
+    "[mcp_servers]",
+    "a = { b = { c = { d = { e = { f = { g = { h = { i = {",
+    "value = 0 # a brace } in a comment",
+    '} } } } } } } }, command = "bash" }',
+  ].join("\n");
+  expect(findMcpTomlCommands(braceInComment)).toEqual(["bash"]);
+  const deep = "[mcp_servers]\na = " + "{ b = ".repeat(20000) + '"bash"' + " }".repeat(20000);
+  expect(findMcpTomlCommands(deep)).toEqual([]);
+}
 /** Checks the list of instruction files and Cursor rules. */
 function knowsInstructionFiles(): void {
   expect(isInstructionFile("CLAUDE.md")).toBe(true);
@@ -189,6 +280,12 @@ function describeConfigurationRules(): void {
   it("ignores task files without tasks", ignoresTaskFilesWithoutTasks);
   it("finds MCP server commands", findsMcpCommands);
   it("finds Codex MCP server commands", findsCodexMcpCommands);
+  it("finds every TOML spelling of an MCP command", findsEverySpellingOfAnMcpCommand);
+  it("reads multi-line strings to their closing quotes", readsMultiLineStringsToTheirClosingQuotes);
+  it("ignores tables that do not declare one MCP server", ignoresTablesThatAreNotAnMcpServer);
+  it("reads past lines that are not statements", readsPastLinesThatAreNotStatements);
+  it("reads escaped keys and deep inline tables", readsEscapedKeysAndDeepInlineTables);
+  it("reads past arrays that span lines", readsPastArraysThatSpanLines);
 }
 
 /** Groups the tests of the instruction rules. */

@@ -88,7 +88,7 @@ legitimate projects and are printed so that a human reads the file.
 |---|---|---|
 | WS001 | high | A hook that starts a worm payload (`setup.js`, `init.js`, or `curl ... \| sh`) as soon as an agent session starts, in `.claude/settings.json`, `.claude/settings.local.json`, `.gemini/settings.json` or `.cursor/hooks.json` |
 | WS002 | high | A task in `.vscode/tasks.json` with `"runOn": "folderOpen"` that starts a worm payload (VS Code, Cursor, Windsurf) |
-| WS003 | medium | A local MCP server command in `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, `.roo/mcp.json`, `.gemini/settings.json`, or a `[mcp_servers.<name>]` table of `.codex/config.toml` |
+| WS003 | medium | A local MCP server command in `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, `.roo/mcp.json`, `.gemini/settings.json`, or an `mcp_servers.<name>.command` key of `.codex/config.toml`, however the TOML spells it |
 | WS004 | high | A script of 500 KB or more in `.claude/`, `.cursor/`, `.gemini/`, `.vscode/`, or named `setup.js` / `init.js` / `init.ps1` at the root, in `scripts/` or in `.github/` |
 | WS005 | high | Invisible or text-direction characters in `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.cursorrules`, Cursor rules or Copilot instructions |
 | WS006 | medium | An instruction file that tells the agent to act "without asking", to "hide the output" or to "run setup first" |
