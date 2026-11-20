@@ -21,7 +21,7 @@ export declare function listRepositories(client: GitHubClient, owner: string): P
 export declare function getRepository(client: GitHubClient, fullName: string): Promise<RepositoryInfo>;
 /** Lists the branches of a repository, at most the given number, and always includes the default branch. */
 export declare function listBranches(client: GitHubClient, fullName: string, maxBranches: number, defaultBranch?: string): Promise<BranchInfo[]>;
-/** Reads the full file tree of a commit, without downloading any file. */
+/** Reads the full file tree of a commit, without downloading any file; a tree that GitHub cannot find is empty. */
 export declare function getTree(client: GitHubClient, fullName: string, sha: string): Promise<TreeEntry[]>;
 /** Turns the base64 content sent by GitHub into text, the same way in Node.js and in a browser. */
 export declare function decodeBase64Text(content: string): string;
