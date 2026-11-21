@@ -121,5 +121,7 @@ export declare function hasInstructionMarker(text: string): boolean;
 export declare function hasWormMarker(message: string): boolean;
 /** Tells whether a repository has the description, and when needed the name shape, of a worm exfiltration repository. */
 export declare function isDropDescription(description: string | null, name?: string): boolean;
+/** Tells whether a repository name is one that a worm gives to its exfiltration repositories. */
+export declare function isDropName(name: string): boolean;
 /** Returns how many whole days a commit date is older than the last push, or 0 when it is not older. */
 export declare function daysBeforePush(commitDate: string, pushedAt: string): number;

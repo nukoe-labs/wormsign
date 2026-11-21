@@ -99,7 +99,7 @@ legitimate projects and are printed so that a human reads the file.
 | WS005 | high | Invisible or text-direction characters in `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `.cursorrules`, Cursor rules or Copilot instructions |
 | WS006 | medium | An instruction file that tells the agent to act "without asking", to "hide the output" or to "run setup first" |
 | WS007 | critical | A branch head commit with a worm marker: `AutoSyncComplete:`, `msync-xxxx`, `DEVOPS-SEALED` |
-| WS008 | critical | An exfiltration repository: description `Sha1-Hulud: The Second Coming.`, `Shai-Hulud: Here We Go Again`, or `project-utils` with a random name such as `smart-workers-48213` |
+| WS008 | critical | An exfiltration repository: description `Sha1-Hulud: The Second Coming.`, `Shai-Hulud: Here We Go Again`, or `project-utils` with a random name such as `smart-workers-48213`; or the name `s1ngularity-repository`, optionally followed by `-0`, `-1`... (Nx compromise) |
 | WS009 | medium | A default branch whose head commit, next to an autorun finding, is dated 30 days or more before the last push |
 | WS010 | medium | Any other agent hook that runs a command (formatters, linters, session checks) |
 | WS011 | critical | An instruction file that carries a worm marker (`DEVOPS-SEALED`) |

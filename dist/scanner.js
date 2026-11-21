@@ -1,5 +1,5 @@
 import { getCommit, getFileText, getTree, listBranches } from "./github.js";
-import { BACKDATED_DAYS, HOOK_FILES, MCP_FILES, MCP_TOML_FILES, RULES, TASKS_FILE, daysBeforePush, findFolderOpenTasks, findHookCommands, findInjectionPhrases, findMcpCommands, findMcpTomlCommands, hasInstructionMarker, hasInvisibleCharacters, hasWormMarker, isDropDescription, isInstructionFile, isLargeScript, isPayloadCommand, } from "./rules.js";
+import { BACKDATED_DAYS, HOOK_FILES, MCP_FILES, MCP_TOML_FILES, RULES, TASKS_FILE, daysBeforePush, findFolderOpenTasks, findHookCommands, findInjectionPhrases, findMcpCommands, findMcpTomlCommands, hasInstructionMarker, hasInvisibleCharacters, hasWormMarker, isDropDescription, isDropName, isInstructionFile, isLargeScript, isPayloadCommand, } from "./rules.js";
 /** The default highest number of branches read per repository. */
 export const DEFAULT_MAX_BRANCHES = 20;
 /** The rules whose findings mean that code can run when the folder is opened. */
@@ -132,9 +132,13 @@ async function scanBranch(client, repository, branch) {
 /** Scans every branch of a repository once per head commit, at most the given number, and checks whether it is a worm drop. */
 export async function scanRepository(client, repository, maxBranches) {
     const findings = [];
+    const place = { repository: repository.full_name, branch: repository.default_branch };
     if (isDropDescription(repository.description, repository.name)) {
-        const place = { repository: repository.full_name, branch: repository.default_branch };
         const message = `${RULES.dropRepository.title}: description "${repository.description}".`;
+        findings.push(createFinding(RULES.dropRepository, place, message));
+    }
+    else if (isDropName(repository.name)) {
+        const message = `${RULES.dropRepository.title}: name "${repository.name}".`;
         findings.push(createFinding(RULES.dropRepository, place, message));
     }
     const branches = await listBranches(client, repository.full_name, maxBranches, repository.default_branch);

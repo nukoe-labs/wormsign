@@ -9,6 +9,7 @@ const PUSHED_AT = "2026-11-08T15:10:13Z";
 const INFECTED_HEAD = "aaa111";
 const BRANCH_HEAD = "bbb222";
 const DROP_HEAD = "ccc333";
+const NAME_DROP_HEAD = "eee555";
 const CLEAN_HEAD = "ddd444";
 
 /** Builds the repository information returned by the API. */
@@ -37,7 +38,7 @@ function createVictimAnswers(): Record<string, FakeAnswer> {
   ];
   const infected = "/repos/victim/infected";
   return {
-    "/users/victim/repos?per_page=100&page=1&type=owner": body([repository("infected", "A theme"), repository("async-engines-8480", "project-utils"), repository("clean", null), repository("old", null, true)]),
+    "/users/victim/repos?per_page=100&page=1&type=owner": body([repository("infected", "A theme"), repository("async-engines-8480", "project-utils"), repository("s1ngularity-repository-0", null), repository("clean", null), repository("old", null, true)]),
     [`${infected}/branches?per_page=20`]: body([{ name: "main", commit: { sha: INFECTED_HEAD } }, { name: "copy", commit: { sha: INFECTED_HEAD } }, { name: "feature", commit: { sha: BRANCH_HEAD } }]),
     [`${infected}/git/trees/${INFECTED_HEAD}?recursive=1`]: body({ tree: infectedTree }),
     [`${infected}/contents/.claude/settings.json?ref=${INFECTED_HEAD}`]: body(encodeFile(WORM_SETTINGS)),
@@ -53,6 +54,9 @@ function createVictimAnswers(): Record<string, FakeAnswer> {
     "/repos/victim/async-engines-8480/branches?per_page=20": body([{ name: "main", commit: { sha: DROP_HEAD } }]),
     [`/repos/victim/async-engines-8480/git/trees/${DROP_HEAD}?recursive=1`]: body({ tree: [] }),
     [`/repos/victim/async-engines-8480/commits/${DROP_HEAD}`]: body({ sha: DROP_HEAD, commit: { message: "AutoSyncComplete: x", committer: { date: PUSHED_AT } } }),
+    "/repos/victim/s1ngularity-repository-0/branches?per_page=20": body([{ name: "main", commit: { sha: NAME_DROP_HEAD } }]),
+    [`/repos/victim/s1ngularity-repository-0/git/trees/${NAME_DROP_HEAD}?recursive=1`]: body({ tree: [] }),
+    [`/repos/victim/s1ngularity-repository-0/commits/${NAME_DROP_HEAD}`]: body({ sha: NAME_DROP_HEAD, commit: { message: "docs", committer: { date: PUSHED_AT } } }),
     "/repos/victim/clean": body(repository("clean", null)),
     "/repos/victim/clean/branches?per_page=20": body([{ name: "main", commit: { sha: CLEAN_HEAD } }]),
     // .mcp.json is listed in the tree but its contents answer 404, as when a file disappears between two requests.
@@ -66,7 +70,7 @@ function createVictimAnswers(): Record<string, FakeAnswer> {
 async function findsEveryWormSignInAnAccount(): Promise<void> {
   const result = await scan("victim", { fetch: createFakeFetch(createVictimAnswers()) });
   const summary = result.findings.map(summarizeFinding);
-  expect(result.scannedRepositories).toBe(3);
+  expect(result.scannedRepositories).toBe(4);
   expect(summary).toEqual([
     "WS004 victim/infected@main:scripts/setup.js",
     "WS001 victim/infected@main:.claude/settings.json",
@@ -81,6 +85,7 @@ async function findsEveryWormSignInAnAccount(): Promise<void> {
     "WS004 victim/infected@feature:scripts/setup.js",
     "WS008 victim/async-engines-8480@main:",
     "WS007 victim/async-engines-8480@main:",
+    "WS008 victim/s1ngularity-repository-0@main:",
   ]);
 }
 
