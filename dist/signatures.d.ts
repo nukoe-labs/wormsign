@@ -19,6 +19,8 @@ export declare const COMMIT_MARKERS: Signature<RegExp>[];
 export declare const INSTRUCTION_MARKERS: Signature<RegExp>[];
 /** The descriptions that worms give to the repositories where they publish stolen secrets. */
 export declare const DROP_DESCRIPTIONS: Signature<string>[];
+/** The names that worms give to the repositories where they publish stolen secrets, whatever the description. */
+export declare const DROP_NAMES: Signature<RegExp>[];
 /** The hook events that run as soon as an agent session starts in the folder, before any question to the user. */
 export declare const SESSION_START_EVENTS: Set<string>;
 /** The phrases that tell an agent to skip the user or to hide what it does. */

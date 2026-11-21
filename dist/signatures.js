@@ -5,6 +5,7 @@
 const BITDEFENDER = "https://www.bitdefender.com/en-us/blog/labs/how-ai-agents-become-new-targets-in-github-malware-campaign";
 const SAFEDEP = "https://safedep.io/mini-shai-hulud-strikes-again-314-npm-packages-compromised/";
 const SAFEDEP_MIASMA = "https://safedep.io/testmetest-npm-worm-miasma-variant/";
+const SOCKET_NX = "https://socket.dev/blog/nx-packages-compromised";
 const WIZ = "https://www.wiz.io/blog/shai-hulud-2-0-ongoing-supply-chain-attack";
 /** The markers that worms write in the commit messages they push. */
 export const COMMIT_MARKERS = [
@@ -19,6 +20,10 @@ export const DROP_DESCRIPTIONS = [
     { value: "project-utils", worm: "Miasma", source: SAFEDEP_MIASMA, namePattern: /^[a-z]+-[a-z]+-\d{3,6}$/u },
     { value: "Sha1-Hulud: The Second Coming.", worm: "Shai-Hulud 2.0", source: WIZ },
     { value: "Shai-Hulud: Here We Go Again", worm: "Mini Shai-Hulud", source: SAFEDEP },
+];
+/** The names that worms give to the repositories where they publish stolen secrets, whatever the description. */
+export const DROP_NAMES = [
+    { value: /^s1ngularity-repository(?:-\d+)?$/u, worm: "s1ngularity (Nx)", source: SOCKET_NX },
 ];
 /** The hook events that run as soon as an agent session starts in the folder, before any question to the user. */
 export const SESSION_START_EVENTS = new Set(["SessionStart", "Setup", "sessionStart", "beforeSessionStart"]);

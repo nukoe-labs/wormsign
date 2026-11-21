@@ -11,6 +11,7 @@ import {
   hasWormMarker,
   hasInstructionMarker,
   isDropDescription,
+  isDropName,
   isInstructionFile,
   isLargeScript,
   parseJson,
@@ -254,6 +255,12 @@ function knowsDropDescriptions(): void {
   expect(isDropDescription(" Sha1-Hulud: The Second Coming. ")).toBe(true);
   expect(isDropDescription("Project utilities")).toBe(false);
   expect(isDropDescription(null)).toBe(false);
+  expect(isDropName("s1ngularity-repository")).toBe(true);
+  expect(isDropName("s1ngularity-repository-0")).toBe(true);
+  expect(isDropName("s1ngularity-repository-12")).toBe(true);
+  expect(isDropName("my-s1ngularity-repository-notes")).toBe(false);
+  expect(isDropName("s1ngularity-repository-x")).toBe(false);
+  expect(isDropName("s1ngularity-repository-0-old")).toBe(false);
   expect(hasInstructionMarker("# DEVOPS-SEALED build notes")).toBe(true);
   expect(hasInstructionMarker("# Build notes")).toBe(false);
 }

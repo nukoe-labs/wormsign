@@ -16,6 +16,7 @@ import {
   hasInvisibleCharacters,
   hasWormMarker,
   isDropDescription,
+  isDropName,
   isInstructionFile,
   isLargeScript,
   isPayloadCommand,
@@ -185,9 +186,12 @@ async function scanBranch(client: GitHubClient, repository: RepositoryInfo, bran
 /** Scans every branch of a repository once per head commit, at most the given number, and checks whether it is a worm drop. */
 export async function scanRepository(client: GitHubClient, repository: RepositoryInfo, maxBranches: number): Promise<Finding[]> {
   const findings: Finding[] = [];
+  const place = { repository: repository.full_name, branch: repository.default_branch };
   if (isDropDescription(repository.description, repository.name)) {
-    const place = { repository: repository.full_name, branch: repository.default_branch };
     const message = `${RULES.dropRepository.title}: description "${repository.description}".`;
+    findings.push(createFinding(RULES.dropRepository, place, message));
+  } else if (isDropName(repository.name)) {
+    const message = `${RULES.dropRepository.title}: name "${repository.name}".`;
     findings.push(createFinding(RULES.dropRepository, place, message));
   }
   const branches = await listBranches(client, repository.full_name, maxBranches, repository.default_branch);

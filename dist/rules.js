@@ -1,4 +1,4 @@
-import { COMMIT_MARKERS, DROP_DESCRIPTIONS, INSTRUCTION_MARKERS, PAYLOAD_COMMANDS, INJECTION_PHRASES, PAYLOAD_FOLDER, SESSION_START_EVENTS, SETUP_SCRIPT } from "./signatures.js";
+import { COMMIT_MARKERS, DROP_DESCRIPTIONS, DROP_NAMES, INSTRUCTION_MARKERS, PAYLOAD_COMMANDS, INJECTION_PHRASES, PAYLOAD_FOLDER, SESSION_START_EVENTS, SETUP_SCRIPT } from "./signatures.js";
 /** Every rule of wormsign, with its stable identifier. */
 export const RULES = {
     agentHook: { id: "WS001", severity: "high", title: "Agent hook starts a worm payload as soon as a session starts" },
@@ -584,6 +584,14 @@ export function isDropDescription(description, name = "") {
     }
     const repository = { description: description.trim(), name };
     return DROP_DESCRIPTIONS.some(matchesDrop, repository);
+}
+/** Tells whether a repository name is one that a worm gives to its exfiltration repositories. */
+export function isDropName(name) {
+    return DROP_NAMES.some(matchesDropName, name);
+}
+/** Tells whether a drop name signature matches the repository name given as this. */
+function matchesDropName(signature) {
+    return signature.value.test(this);
 }
 /** Tells whether a drop signature matches the repository given as this. */
 function matchesDrop(signature) {
