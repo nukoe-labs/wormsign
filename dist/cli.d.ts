@@ -15,6 +15,8 @@ export interface CommandLine {
     maxBranches?: number;
     /** The local folder to scan instead of GitHub, given with --path. */
     path?: string;
+    /** What to print instead of scanning, given with --help or --version. */
+    show?: "help" | "version";
 }
 /** Reads the command line arguments, or throws a RangeError with the usage when they are wrong. */
 export declare function parseArguments(argumentsList: string[]): CommandLine;

@@ -36,7 +36,13 @@ export function parseArguments(argumentsList) {
     const commandLine = { target: "", format: "text" };
     for (let index = 0; index < argumentsList.length; index += 1) {
         const argument = argumentsList[index];
-        if (argument === "--json" || argument === "--sarif") {
+        if (argument === "--help" || argument === "-h") {
+            return { target: "", format: "text", show: "help" };
+        }
+        else if (argument === "--version" || argument === "-V") {
+            return { target: "", format: "text", show: "version" };
+        }
+        else if (argument === "--json" || argument === "--sarif") {
             commandLine.format = argument === "--json" ? "json" : "sarif";
         }
         else if (argument === "--max-branches") {
@@ -50,8 +56,11 @@ export function parseArguments(argumentsList) {
         else if (commandLine.target === "" && argument !== undefined && !argument.startsWith("-")) {
             commandLine.target = argument;
         }
+        else if (String(argument).startsWith("-")) {
+            throw new RangeError(`Unknown option "${argument}".\n${USAGE}`);
+        }
         else {
-            throw new RangeError(USAGE);
+            throw new RangeError(`Only one target is scanned at a time, but "${argument}" comes after "${commandLine.target}".\n${USAGE}`);
         }
     }
     const hasOneTarget = (commandLine.target === "") !== (commandLine.path === undefined);
@@ -95,6 +104,10 @@ async function scanTarget(commandLine, environment) {
 export async function run(argumentsList, environment, output) {
     try {
         const commandLine = parseArguments(argumentsList);
+        if (commandLine.show !== undefined) {
+            output.write(commandLine.show === "help" ? USAGE : `wormsign ${VERSION}`);
+            return EXIT_CLEAN;
+        }
         const result = await scanTarget(commandLine, environment);
         output.write(formatResult(result, commandLine.format, output.useColor === true));
         const hasWormSign = result.findings.some(isWormSign);
