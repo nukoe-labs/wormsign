@@ -3,7 +3,7 @@ import { DEFAULT_MAX_BRANCHES, scanRepository } from "./scanner.js";
 export { createGitHubClient, getRepository, GitHubError, listRepositories } from "./github.js";
 export { DEFAULT_MAX_BRANCHES, scanRepository } from "./scanner.js";
 export { RULES } from "./rules.js";
-export { LARGEST_LOCAL_FILE_BYTES, LOCAL_BRANCH, scanDirectory } from "./local.js";
+export { DEEPEST_RULE_FOLDER, LARGEST_LOCAL_FILE_BYTES, LOCAL_BRANCH, MOST_RULE_ENTRIES, scanDirectory } from "./local.js";
 export { countAffectedRepositories, formatJson, formatMarkdown, formatSarif, formatSummary, formatText, isWormSign, RESPONSE_STEPS } from "./report.js";
 const TARGET_PATTERN = /^[A-Za-z0-9-]+(?:\/[A-Za-z0-9._-]+)?$/u;
 /** Checks that a target is a GitHub owner or an owner/name repository, and returns it trimmed. */

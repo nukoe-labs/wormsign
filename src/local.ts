@@ -1,3 +1,4 @@
+import type { Dirent } from "node:fs";
 import { lstat, readdir, readFile, realpath } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { HOOK_FILES, INSTRUCTION_FILES, MCP_FILES, MCP_TOML_FILES, TASKS_FILE } from "./rules.js";
@@ -38,19 +39,51 @@ async function readRegularFile(fullPath: string): Promise<string | undefined> {
   }
 }
 
-/** Lists the Cursor rule files of the folder, or nothing when the rules folder does not exist. */
+/** How many folders deep below .cursor/rules the walk goes, so that a planted tree cannot keep it busy. */
+export const DEEPEST_RULE_FOLDER = 8;
+
+/** How many entries of .cursor/rules the walk reads at most. */
+export const MOST_RULE_ENTRIES = 1000;
+
+/** Lists the Cursor rule files of the folder, in the rules folder and in the folders below it, never through a link. */
 async function listCursorRulePaths(folder: string): Promise<string[]> {
-  try {
-    const names = await readdir(join(folder, CURSOR_RULES_FOLDER));
-    return names.map(prefixWithCursorRulesFolder);
-  } catch {
-    return [];
+  const found: string[] = [];
+  await walkRuleFolder(folder, CURSOR_RULES_FOLDER, 0, { found, entriesLeft: MOST_RULE_ENTRIES });
+  return found;
+}
+
+/** The files found so far below the rules folder, and how many more entries may be read. */
+interface RuleWalk {
+  found: string[];
+  entriesLeft: number;
+}
+
+/** Adds the files below one rules folder to the walk, and goes into its sub-folders up to the depth and entry limits. */
+async function walkRuleFolder(folder: string, relativePath: string, depth: number, walk: RuleWalk): Promise<void> {
+  const entries = await readdir(join(folder, relativePath), { withFileTypes: true }).catch(returnNothing);
+  entries.sort(compareNames);
+  for (const entry of entries) {
+    if (walk.entriesLeft === 0) {
+      return;
+    }
+    walk.entriesLeft -= 1;
+    const entryPath = `${relativePath}/${entry.name}`;
+    if (entry.isDirectory() && depth < DEEPEST_RULE_FOLDER) {
+      await walkRuleFolder(folder, entryPath, depth + 1, walk);
+    } else if (!entry.isDirectory()) {
+      walk.found.push(entryPath);
+    }
   }
 }
 
-/** Writes the path of one Cursor rule file relative to the scanned folder. */
-function prefixWithCursorRulesFolder(name: string): string {
-  return `${CURSOR_RULES_FOLDER}/${name}`;
+/** Orders two folder entries by name, so that the walk and its limit do not depend on the file system. */
+function compareNames(left: Dirent, right: Dirent): number {
+  return left.name.localeCompare(right.name, "en");
+}
+
+/** Returns no entries, used when the rules folder does not exist or cannot be read. */
+function returnNothing(): Dirent[] {
+  return [];
 }
 
 /** Checks that the folder exists and is a real folder, and returns its absolute path without symbolic links. */
