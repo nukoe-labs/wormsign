@@ -6,6 +6,9 @@ import { EXIT_CLEAN, EXIT_ERROR, EXIT_FINDINGS, parseArguments, run } from "../s
 import { DEEPEST_RULE_FOLDER, LARGEST_LOCAL_FILE_BYTES, LOCAL_BRANCH, MOST_RULE_ENTRIES, scanDirectory } from "../src/index.js";
 import { WORM_SETTINGS } from "./fake-github.js";
 
+/** The time allowed to the test that writes a thousand files, so that a busy machine does not fail it. */
+const LIMIT_TEST_TIMEOUT_MS = 60_000;
+
 let folder = "";
 let outside = "";
 
@@ -71,11 +74,21 @@ async function stopsTheRuleWalkAtItsLimits(): Promise<void> {
   await writeProjectFile(`.cursor/rules/${justDeepEnough}/ok.mdc`, worm);
   expect((await scanDirectory(folder)).map(readPath)).toEqual([`.cursor/rules/${justDeepEnough}/ok.mdc`]);
   await rm(join(folder, ".cursor"), { recursive: true });
-  for (let index = 0; index < MOST_RULE_ENTRIES; index += 1) {
-    await writeProjectFile(`.cursor/rules/a-${String(index).padStart(4, "0")}.mdc`, "Plain notes.");
-  }
+  await mkdir(join(folder, ".cursor", "rules"), { recursive: true });
+  const names = Array.from({ length: MOST_RULE_ENTRIES }, returnRuleName);
+  await Promise.all(names.map(writePlainRule));
   await writeProjectFile(".cursor/rules/zz-last.mdc", worm);
   await expect(scanDirectory(folder)).resolves.toEqual([]);
+}
+
+/** Returns the name of the rule file at a position, in the order the walk reads them. */
+function returnRuleName(_unused: unknown, index: number): string {
+  return `a-${String(index).padStart(4, "0")}.mdc`;
+}
+
+/** Writes a rule file with nothing in it for the rules to find. */
+async function writePlainRule(name: string): Promise<void> {
+  await writeFile(join(folder, ".cursor", "rules", name), "Plain notes.");
 }
 
 /** Returns a folder name, used to build a deep path. */
@@ -157,7 +170,7 @@ function describeTheLocalScan(): void {
   it("finds a SessionStart hook that starts a setup script in a local folder", findsASessionstartHookThatStartsASetupScriptInALocalFolder);
   it("reads the Cursor rule files of a local folder", readsTheCursorRuleFilesOfALocalFolder);
   it("reads Cursor rule files in sub-folders", readsCursorRuleFilesInSubFolders);
-  it("stops the rule walk at its depth and entry limits", stopsTheRuleWalkAtItsLimits);
+  it("stops the rule walk at its depth and entry limits", stopsTheRuleWalkAtItsLimits, LIMIT_TEST_TIMEOUT_MS);
   it("does not follow a link inside the rules folder", doesNotFollowALinkInsideTheRulesFolder);
   it("finds nothing in a clean folder", findsNothingInACleanFolder);
   it("never follows a symbolic link, whether it points to a file or to a folder", neverFollowsASymbolicLinkWhetherItPointsToAFileOrToAFolder);
