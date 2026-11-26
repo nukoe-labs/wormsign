@@ -36,7 +36,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - id: exists
+        name: Check that the repository still exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          answer=$(gh api repos/ConcordiaDev/theme_saimaniq --silent 2>&1) && status=0 || status=$?
+          if [ "$status" != 0 ] && echo "$answer" | grep -q "HTTP 404"; then
+            echo "::notice::The repository has been deleted; nothing to check."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
       - id: scan
+        if: steps.exists.outputs.present == 'true'
         uses: ./
         with:
           # This repository is named in the SafeDep report on the Miasma worm; it stays infected at the time of writing.
@@ -44,6 +57,7 @@ jobs:
           fail-on-findings: "false"
           sarif: "true"
       - name: Check that the worm is found and the SARIF file is written
+        if: steps.exists.outputs.present == 'true'
         env:
           FINDINGS: ${{ steps.scan.outputs.findings }}
         run: |
