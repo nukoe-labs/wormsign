@@ -32,19 +32,41 @@ async function readRegularFile(fullPath) {
         return undefined;
     }
 }
-/** Lists the Cursor rule files of the folder, or nothing when the rules folder does not exist. */
+/** How many folders deep below .cursor/rules the walk goes, so that a planted tree cannot keep it busy. */
+export const DEEPEST_RULE_FOLDER = 8;
+/** How many entries of .cursor/rules the walk reads at most. */
+export const MOST_RULE_ENTRIES = 1000;
+/** Lists the Cursor rule files of the folder, in the rules folder and in the folders below it, never through a link. */
 async function listCursorRulePaths(folder) {
-    try {
-        const names = await readdir(join(folder, CURSOR_RULES_FOLDER));
-        return names.map(prefixWithCursorRulesFolder);
-    }
-    catch {
-        return [];
+    const found = [];
+    await walkRuleFolder(folder, CURSOR_RULES_FOLDER, 0, { found, entriesLeft: MOST_RULE_ENTRIES });
+    return found;
+}
+/** Adds the files below one rules folder to the walk, and goes into its sub-folders up to the depth and entry limits. */
+async function walkRuleFolder(folder, relativePath, depth, walk) {
+    const entries = await readdir(join(folder, relativePath), { withFileTypes: true }).catch(returnNothing);
+    entries.sort(compareNames);
+    for (const entry of entries) {
+        if (walk.entriesLeft === 0) {
+            return;
+        }
+        walk.entriesLeft -= 1;
+        const entryPath = `${relativePath}/${entry.name}`;
+        if (entry.isDirectory() && depth < DEEPEST_RULE_FOLDER) {
+            await walkRuleFolder(folder, entryPath, depth + 1, walk);
+        }
+        else if (!entry.isDirectory()) {
+            walk.found.push(entryPath);
+        }
     }
 }
-/** Writes the path of one Cursor rule file relative to the scanned folder. */
-function prefixWithCursorRulesFolder(name) {
-    return `${CURSOR_RULES_FOLDER}/${name}`;
+/** Orders two folder entries by name, so that the walk and its limit do not depend on the file system. */
+function compareNames(left, right) {
+    return left.name.localeCompare(right.name, "en");
+}
+/** Returns no entries, used when the rules folder does not exist or cannot be read. */
+function returnNothing() {
+    return [];
 }
 /** Checks that the folder exists and is a real folder, and returns its absolute path without symbolic links. */
 async function checkFolder(folder) {

@@ -6,7 +6,7 @@ export { createGitHubClient, getRepository, GitHubError, listRepositories } from
 export type { GitHubClient } from "./github.js";
 export { DEFAULT_MAX_BRANCHES, scanRepository } from "./scanner.js";
 export { RULES } from "./rules.js";
-export { LARGEST_LOCAL_FILE_BYTES, LOCAL_BRANCH, scanDirectory } from "./local.js";
+export { DEEPEST_RULE_FOLDER, LARGEST_LOCAL_FILE_BYTES, LOCAL_BRANCH, MOST_RULE_ENTRIES, scanDirectory } from "./local.js";
 export { countAffectedRepositories, formatJson, formatMarkdown, formatSarif, formatSummary, formatText, isWormSign, RESPONSE_STEPS } from "./report.js";
 export type { Finding, RepositoryInfo, ScanOptions, Severity } from "./types.js";
 
