@@ -56,7 +56,8 @@ function readsTheCommandLine(): void {
 function refusesWrongCommandLines(): void {
   expect(parseArguments.bind(undefined, [])).toThrow("Usage: wormsign");
   expect(parseArguments.bind(undefined, ["a", "b"])).toThrow("Usage: wormsign");
-  expect(parseArguments.bind(undefined, ["--unknown"])).toThrow("Usage: wormsign");
+  expect(parseArguments.bind(undefined, ["--unknown"])).toThrow('Unknown option "--unknown".\nUsage: wormsign');
+  expect(parseArguments.bind(undefined, ["a", "b"])).toThrow('Only one target is scanned at a time, but "b" comes after "a".');
   expect(parseArguments.bind(undefined, ["a", "--max-branches", "0"])).toThrow("--max-branches");
   expect(parseArguments.bind(undefined, ["a", "--max-branches"])).toThrow("--max-branches");
 }
@@ -89,6 +90,21 @@ function writesMediumFindingsAsWarnings(): void {
   const result = { findings: [{ ...DROP_FINDING, severity: "medium" as const }], scannedRepositories: 1 };
   const sarif = JSON.parse(formatResult(result, "sarif"));
   expect(sarif.runs[0].results[0].level).toBe("warning");
+}
+
+/** Checks that --help and --version print to the standard output and succeed, wherever they stand. */
+async function printsHelpAndVersion(): Promise<void> {
+  for (const [flag, expected] of [["--help", "Usage: wormsign"], ["-h", "Usage: wormsign"], ["--version", `wormsign ${VERSION}`], ["-V", `wormsign ${VERSION}`]] as const) {
+    const output = createRecordedOutput();
+    expect(await run([flag], {}, output)).toBe(EXIT_CLEAN);
+    expect(output.written[0]).toContain(expected);
+    expect(output.errors).toEqual([]);
+  }
+  const output = createRecordedOutput();
+  expect(await run(["victim", "--json", "--help"], {}, output)).toBe(EXIT_CLEAN);
+  expect(output.written[0]).toContain("Usage: wormsign");
+  expect(await run(["--unknown"], {}, output)).toBe(EXIT_ERROR);
+  expect(output.errors[0]).toContain('Unknown option "--unknown"');
 }
 
 /** Checks the exit codes of a scan with findings and of a scan that cannot run. */
@@ -177,6 +193,7 @@ function describeCommandLine(): void {
   it("builds scan options from the environment", buildsScanOptionsFromTheEnvironment);
   it("writes the three formats", writesTheThreeFormats);
   it("writes medium findings as warnings", writesMediumFindingsAsWarnings);
+  it("prints the help and the version and succeeds", printsHelpAndVersion);
   it("returns the right exit codes", returnsTheRightExitCodes);
   it("reports clean scans and odd failures", reportsCleanScansAndOddFailures);
   it("writes failures that are not errors", writesNonErrorFailures);
