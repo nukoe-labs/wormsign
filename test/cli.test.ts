@@ -65,6 +65,19 @@ function refusesWrongCommandLines(): void {
   expect(parseArguments.bind(undefined, ["--json", "--path", "--sarif"])).toThrow("--path needs a folder.");
 }
 
+/** Checks that the options with a value also accept the --name=value form, with the same checks on the value. */
+function readsOptionsWrittenWithAnEqualSign(): void {
+  expect(parseArguments(["--path=/tmp/project", "--json"])).toEqual({ target: "", format: "json", path: "/tmp/project" });
+  expect(parseArguments(["octo", "--max-branches=5"])).toEqual({ target: "octo", format: "text", maxBranches: 5 });
+  expect(parseArguments(["--path=./a=b"])).toEqual({ target: "", format: "text", path: "./a=b" });
+  expect(parseArguments.bind(undefined, ["--path="])).toThrow("--path needs a folder.");
+  expect(parseArguments.bind(undefined, ["--path=--json"])).toThrow("--path needs a folder.");
+  expect(parseArguments.bind(undefined, ["a", "--max-branches=0"])).toThrow("--max-branches");
+  expect(parseArguments.bind(undefined, ["a", "--max-branches="])).toThrow("--max-branches");
+  expect(parseArguments.bind(undefined, ["a", "--json=1"])).toThrow('Unknown option "--json=1".');
+  expect(parseArguments.bind(undefined, ["a=b"])).not.toThrow();
+}
+
 /** Checks that a folder named like an option is still reachable with a leading ./ . */
 function readsAFolderWhoseNameStartsWithADash(): void {
   expect(parseArguments(["--path", "./-name", "--json"])).toEqual({ target: "", format: "json", path: "./-name" });
@@ -199,6 +212,7 @@ function describeCommandLine(): void {
   it("reads the command line", readsTheCommandLine);
   it("refuses wrong command lines", refusesWrongCommandLines);
   it("reads a folder whose name starts with a dash", readsAFolderWhoseNameStartsWithADash);
+  it("reads options written with an equal sign", readsOptionsWrittenWithAnEqualSign);
   it("builds scan options from the environment", buildsScanOptionsFromTheEnvironment);
   it("writes the three formats", writesTheThreeFormats);
   it("writes medium findings as warnings", writesMediumFindingsAsWarnings);
