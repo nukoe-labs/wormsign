@@ -1,7 +1,7 @@
 import { lstat, readdir, readFile, realpath } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { HOOK_FILES, INSTRUCTION_FILES, MCP_FILES, MCP_TOML_FILES, TASKS_FILE } from "./rules.js";
-import { checkFileText } from "./scanner.js";
+import { checkFileText, createUnreadFileFinding } from "./scanner.js";
 /** The branch name written in findings that come from a local folder, which has no branch. */
 export const LOCAL_BRANCH = "working tree";
 /** The largest file read, so that a huge file planted in the folder cannot exhaust the memory. */
@@ -31,6 +31,12 @@ async function readRegularFile(fullPath) {
     catch {
         return undefined;
     }
+}
+/** Returns the size of a regular file that is larger than the reading limit, and undefined for any other file or a missing one. */
+async function findOversizedFileSize(fullPath) {
+    const information = await lstat(fullPath).catch(returnUndefined);
+    const isOversized = information?.isFile() === true && information.size > LARGEST_LOCAL_FILE_BYTES;
+    return isOversized ? information.size : undefined;
 }
 /** How many folders deep below .cursor/rules the walk goes, so that a planted tree cannot keep it busy. */
 export const DEEPEST_RULE_FOLDER = 8;
@@ -92,11 +98,16 @@ export async function scanDirectory(folder) {
     const place = { repository: basename(absoluteFolder), branch: LOCAL_BRANCH };
     const findings = [];
     for (const path of paths) {
-        const text = await readRegularFile(join(absoluteFolder, path));
-        if (text === undefined) {
+        const fullPath = join(absoluteFolder, path);
+        const text = await readRegularFile(fullPath);
+        if (text !== undefined) {
+            findings.push(...checkFileText(path, text, place));
             continue;
         }
-        findings.push(...checkFileText(path, text, place));
+        const oversizedSize = await findOversizedFileSize(fullPath);
+        if (oversizedSize !== undefined) {
+            findings.push(createUnreadFileFinding(path, oversizedSize, place));
+        }
     }
     return findings;
 }

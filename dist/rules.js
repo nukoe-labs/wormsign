@@ -13,6 +13,7 @@ export const RULES = {
     toolHook: { id: "WS010", severity: "medium", title: "Agent hook runs a command" },
     instructionMarker: { id: "WS011", severity: "critical", title: "Instruction file carries a known worm marker" },
     folderOpenCommand: { id: "WS012", severity: "medium", title: "Editor task runs a command when the folder is opened" },
+    unreadFile: { id: "WS013", severity: "medium", title: "Agent file too large to be read" },
 };
 /** The smallest size, in bytes, of a script considered as a hidden payload. */
 export const LARGE_SCRIPT_BYTES = 500_000;

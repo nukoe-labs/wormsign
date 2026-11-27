@@ -121,10 +121,24 @@ async function neverFollowsASymbolicLinkWhetherItPointsToAFileOrToAFolder(): Pro
   await expect(scanDirectory(folder)).resolves.toEqual([]);
 }
 
-/** Checks that the scan skips a file that is larger than the reading limit. */
-async function skipsAFileThatIsLargerThanTheReadingLimit(): Promise<void> {
+/** Checks that the scan does not read a file that is larger than the reading limit, but reports it instead of calling the folder clean. */
+async function reportsAFileThatIsLargerThanTheReadingLimit(): Promise<void> {
   const hugeSettings = WORM_SETTINGS + " ".repeat(LARGEST_LOCAL_FILE_BYTES);
   await writeProjectFile(".claude/settings.json", hugeSettings);
+  const findings = await scanDirectory(folder);
+  expect(findings.map(readRule)).toEqual(["WS013"]);
+  expect(findings[0]).toMatchObject({ severity: "medium", path: ".claude/settings.json", branch: LOCAL_BRANCH });
+  expect(findings[0]?.message).toContain(`${hugeSettings.length} bytes`);
+}
+
+/** Checks that a file exactly at the reading limit is read, and that a link to a large file is not reported. */
+async function readsAFileAtTheLimitAndIgnoresALinkToALargeFile(): Promise<void> {
+  const padding = " ".repeat(LARGEST_LOCAL_FILE_BYTES - WORM_SETTINGS.length);
+  await writeProjectFile(".claude/settings.json", WORM_SETTINGS + padding);
+  expect((await scanDirectory(folder)).map(readRule)).toEqual(["WS001"]);
+  await writeProjectFile("big.md", "x".repeat(LARGEST_LOCAL_FILE_BYTES + 1));
+  await rm(join(folder, ".claude"), { recursive: true });
+  await symlink(join(folder, "big.md"), join(folder, "CLAUDE.md"));
   await expect(scanDirectory(folder)).resolves.toEqual([]);
 }
 
@@ -174,7 +188,8 @@ function describeTheLocalScan(): void {
   it("does not follow a link inside the rules folder", doesNotFollowALinkInsideTheRulesFolder);
   it("finds nothing in a clean folder", findsNothingInACleanFolder);
   it("never follows a symbolic link, whether it points to a file or to a folder", neverFollowsASymbolicLinkWhetherItPointsToAFileOrToAFolder);
-  it("skips a file that is larger than the reading limit", skipsAFileThatIsLargerThanTheReadingLimit);
+  it("reports a file that is larger than the reading limit", reportsAFileThatIsLargerThanTheReadingLimit);
+  it("reads a file at the limit and ignores a link to a large file", readsAFileAtTheLimitAndIgnoresALinkToALargeFile);
   it("refuses a path that is not a folder", refusesAPathThatIsNotAFolder);
   it("reads --path on the command line and refuses it with a target or without a folder", readsPathOnTheCommandLineAndRefusesItWithATargetOrWithoutAFolder);
   it("returns the findings exit code for a trapped folder and the clean code for a clean one", returnsTheFindingsExitCodeForATrappedFolderAndTheCleanCodeForACleanOne);
