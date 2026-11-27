@@ -49,8 +49,26 @@ function readPath(value: string | undefined): string {
   return value;
 }
 
+/** The options that take a value, which may be written as `--name value` or `--name=value`. */
+const VALUE_OPTIONS = new Set(["--max-branches", "--path"]);
+
+/** Splits `--name=value` into `--name` and `value` for the options that take a value, and keeps every other argument. */
+function splitEqualSigns(argumentsList: string[]): string[] {
+  const split: string[] = [];
+  for (const argument of argumentsList) {
+    const equalSign = argument.indexOf("=");
+    if (equalSign > 0 && VALUE_OPTIONS.has(argument.slice(0, equalSign))) {
+      split.push(argument.slice(0, equalSign), argument.slice(equalSign + 1));
+    } else {
+      split.push(argument);
+    }
+  }
+  return split;
+}
+
 /** Reads the command line arguments, or throws a RangeError with the usage when they are wrong. */
-export function parseArguments(argumentsList: string[]): CommandLine {
+export function parseArguments(rawArguments: string[]): CommandLine {
+  const argumentsList = splitEqualSigns(rawArguments);
   const commandLine: CommandLine = { target: "", format: "text" };
   for (let index = 0; index < argumentsList.length; index += 1) {
     const argument = argumentsList[index];

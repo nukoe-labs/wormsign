@@ -55,7 +55,7 @@ The package is not on npm yet: these commands run the build committed in this re
 | `1` | At least one worm sign (critical or high finding). Follow [the guide](docs/if-you-are-hit.md). |
 | `2` | The scan could not run (unknown owner, network, rate limit too far away). |
 
-- **Every branch**: up to 20 branches per repository by default (`--max-branches <n>`), each commit read once.
+- **Every branch**: up to 20 branches per repository by default (`--max-branches <n>` or `--max-branches=<n>`), each commit read once.
 - **Rate limits handled**: when GitHub asks to wait less than 5 minutes, wormsign waits and retries; otherwise it
   stops with the reset time and the fix. Large accounts are read page by page.
 - **Zero dependencies**, Node.js 20 or later, colored output on a terminal (`NO_COLOR` is respected).

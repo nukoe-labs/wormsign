@@ -19,7 +19,7 @@ export interface CommandLine {
     show?: "help" | "version";
 }
 /** Reads the command line arguments, or throws a RangeError with the usage when they are wrong. */
-export declare function parseArguments(argumentsList: string[]): CommandLine;
+export declare function parseArguments(rawArguments: string[]): CommandLine;
 /** Writes the scan result in the format chosen on the command line. */
 export declare function formatResult(result: ScanResult, format: CommandLine["format"], useColor?: boolean): string;
 /** The streams the command writes to, replaceable in tests. */
