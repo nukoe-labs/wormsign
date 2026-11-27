@@ -24,9 +24,9 @@ function readMaxBranches(value) {
     }
     return maxBranches;
 }
-/** Reads the value of --path and checks that a folder was given. */
+/** Reads the value of --path and checks that a folder was given, not the next option. */
 function readPath(value) {
-    if (value === undefined || value === "") {
+    if (value === undefined || value === "" || value.startsWith("-")) {
         throw new RangeError("--path needs a folder.");
     }
     return value;

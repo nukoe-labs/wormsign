@@ -60,6 +60,14 @@ function refusesWrongCommandLines(): void {
   expect(parseArguments.bind(undefined, ["a", "b"])).toThrow('Only one target is scanned at a time, but "b" comes after "a".');
   expect(parseArguments.bind(undefined, ["a", "--max-branches", "0"])).toThrow("--max-branches");
   expect(parseArguments.bind(undefined, ["a", "--max-branches"])).toThrow("--max-branches");
+  expect(parseArguments.bind(undefined, ["--path"])).toThrow("--path needs a folder.");
+  expect(parseArguments.bind(undefined, ["--path", "--json"])).toThrow("--path needs a folder.");
+  expect(parseArguments.bind(undefined, ["--json", "--path", "--sarif"])).toThrow("--path needs a folder.");
+}
+
+/** Checks that a folder named like an option is still reachable with a leading ./ . */
+function readsAFolderWhoseNameStartsWithADash(): void {
+  expect(parseArguments(["--path", "./-name", "--json"])).toEqual({ target: "", format: "json", path: "./-name" });
 }
 
 /** Checks that the token comes from GITHUB_TOKEN, then GH_TOKEN, and that nothing is set without one. */
@@ -190,6 +198,7 @@ function describeCommandLine(): void {
   afterEach(restoreGlobals);
   it("reads the command line", readsTheCommandLine);
   it("refuses wrong command lines", refusesWrongCommandLines);
+  it("reads a folder whose name starts with a dash", readsAFolderWhoseNameStartsWithADash);
   it("builds scan options from the environment", buildsScanOptionsFromTheEnvironment);
   it("writes the three formats", writesTheThreeFormats);
   it("writes medium findings as warnings", writesMediumFindingsAsWarnings);
