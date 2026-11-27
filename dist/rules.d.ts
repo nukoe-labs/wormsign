@@ -67,6 +67,11 @@ export declare const RULES: {
         readonly severity: "medium";
         readonly title: "Editor task runs a command when the folder is opened";
     };
+    readonly unreadFile: {
+        readonly id: "WS013";
+        readonly severity: "medium";
+        readonly title: "Agent file too large to be read";
+    };
 };
 /** The smallest size, in bytes, of a script considered as a hidden payload. */
 export declare const LARGE_SCRIPT_BYTES = 500000;

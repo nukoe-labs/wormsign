@@ -8,6 +8,11 @@ const AUTORUN_RULES = new Set([RULES.agentHook.id, RULES.folderOpenTask.id, RULE
 function createFinding(rule, place, message) {
     return { rule: rule.id, severity: rule.severity, ...place, message };
 }
+/** Builds the note for an agent file that was too large to be read, so that a skipped file never looks clean. */
+export function createUnreadFileFinding(path, size, place) {
+    const message = `${RULES.unreadFile.title}: ${size} bytes, so it was not checked. Read it by hand: padding hides a hook from a scan.`;
+    return createFinding(RULES.unreadFile, { ...place, path }, message);
+}
 /** Joins a list of commands or phrases into a short quoted text. */
 function quote(items) {
     return items.map(quoteOne).join(", ");
