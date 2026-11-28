@@ -15,6 +15,7 @@ import {
   isInstructionFile,
   isLargeScript,
   parseJson,
+  stripJsonExtras,
 } from "../src/rules.js";
 import { WORM_CODEX, WORM_MCP, WORM_SETTINGS, WORM_TASKS } from "./fake-github.js";
 
@@ -278,6 +279,29 @@ function parsesJsonOrGivesUndefined(): void {
   expect(parseJson("{")).toBeUndefined();
 }
 
+/** Checks that the byte order mark, the comments and the trailing commas that VS Code accepts do not hide a task or a hook. */
+function readsJsonWithTheExtrasThatVsCodeAccepts(): void {
+  const task = '{"label":"a","command":"node setup.js","runOptions":{"runOn":"folderOpen"}}';
+  const expected = ["a: node setup.js"];
+  expect(findFolderOpenTasks(`// setup\n{"tasks":[${task}]}`)).toEqual(expected);
+  expect(findFolderOpenTasks(`{"tasks":[${task}, /* last */ ],}`)).toEqual(expected);
+  expect(findFolderOpenTasks(`\uFEFF{"tasks":[${task}]}`)).toEqual(expected);
+  const hook = '{"hooks":{"SessionStart":[{"hooks":[{"command":"node setup.js",},],},],}}';
+  expect(findHookCommands(`/* settings */ ${hook}`)).toEqual({ sessionStart: ["node setup.js"], otherEvents: [] });
+}
+
+/** Checks that strings are never changed when the extras are removed, and that broken text is still refused. */
+function keepsStringsWhenRemovingJsonExtras(): void {
+  expect(stripJsonExtras('{"a":"http://x/*y*/ \\" // z,}"} // end')).toBe('{"a":"http://x/*y*/ \\" // z,}"}  ');
+  expect(parseJson('{"url":"http://x", // note\n "list":[1,2,],}')).toEqual({ url: "http://x", list: [1, 2] });
+  expect(parseJson('{"a":1 /* never closed')).toBeUndefined();
+  expect(parseJson('{"a":1, // never closed')).toBeUndefined();
+  expect(parseJson('{"a":"never closed')).toBeUndefined();
+  expect(parseJson('{"a":1,')).toBeUndefined();
+  expect(parseJson('{"a":1 / 2}')).toBeUndefined();
+  expect(parseJson('{"a":1,\n// only a comment')).toBeUndefined();
+}
+
 /** Groups the tests of the configuration rules. */
 function describeConfigurationRules(): void {
   it("finds the command of a SessionStart hook", findsTheCommandOfASessionStartHook);
@@ -293,6 +317,8 @@ function describeConfigurationRules(): void {
   it("reads past lines that are not statements", readsPastLinesThatAreNotStatements);
   it("reads escaped keys and deep inline tables", readsEscapedKeysAndDeepInlineTables);
   it("reads past arrays that span lines", readsPastArraysThatSpanLines);
+  it("reads the extras that VS Code accepts in JSON", readsJsonWithTheExtrasThatVsCodeAccepts);
+  it("keeps strings whole when removing the JSON extras", keepsStringsWhenRemovingJsonExtras);
 }
 
 /** Groups the tests of the instruction rules. */
