@@ -89,7 +89,12 @@ export declare const MCP_TOML_FILES: Set<string>;
 export declare const TASKS_FILE = ".vscode/tasks.json";
 /** Tells whether a path is an instruction file, at the root or as a Cursor rule. */
 export declare function isInstructionFile(path: string): boolean;
-/** Reads a JSON text and returns its value, or undefined when the text is not valid JSON. */
+/** Turns the JSON that VS Code accepts (a byte order mark, comments, trailing commas) into strict JSON, leaving strings as they are. */
+export declare function stripJsonExtras(text: string): string;
+/**
+ * Reads a JSON text and returns its value, or undefined when the text is not valid JSON. Strict JSON is tried first;
+ * VS Code also reads a byte order mark, comments and trailing commas in its files, so a file that uses them is read too.
+ */
 export declare function parseJson(text: string): unknown;
 /** Collects every "command" string found anywhere inside a JSON value. */
 export declare function collectCommands(value: unknown): string[];

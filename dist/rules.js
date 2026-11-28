@@ -46,10 +46,91 @@ export function isInstructionFile(path) {
     const isCursorRule = path.startsWith(".cursor/rules/");
     return INSTRUCTION_FILES.has(path) || isCursorRule;
 }
-/** Reads a JSON text and returns its value, or undefined when the text is not valid JSON. */
+/** Returns the index after the string that opens at the given quote, or the end of the text when it never closes. */
+function findStringEnd(source, quoteIndex) {
+    let index = quoteIndex + 1;
+    while (index < source.length) {
+        const character = source[index];
+        if (character === "\\") {
+            index += 2;
+            continue;
+        }
+        index += 1;
+        if (character === "\"") {
+            return index;
+        }
+    }
+    return source.length;
+}
+/** Returns the index after the comment that starts at the given slash, or that same index when no comment starts there. */
+function findCommentEnd(source, slashIndex) {
+    const opening = source.slice(slashIndex, slashIndex + 2);
+    if (opening === "//") {
+        const lineEnd = source.indexOf("\n", slashIndex);
+        return lineEnd === -1 ? source.length : lineEnd;
+    }
+    if (opening === "/*") {
+        const closing = source.indexOf("*/", slashIndex + 2);
+        return closing === -1 ? source.length : closing + 2;
+    }
+    return slashIndex;
+}
+/** Tells whether the comma at the given index is followed, past spaces and comments, by a closing brace or bracket. */
+function isTrailingComma(source, commaIndex) {
+    let index = commaIndex + 1;
+    while (index < source.length) {
+        const commentEnd = source[index] === "/" ? findCommentEnd(source, index) : index;
+        if (commentEnd > index) {
+            index = commentEnd;
+        }
+        else if (/\s/.test(source.charAt(index))) {
+            index += 1;
+        }
+        else {
+            return source[index] === "}" || source[index] === "]";
+        }
+    }
+    return false;
+}
+/** Turns the JSON that VS Code accepts (a byte order mark, comments, trailing commas) into strict JSON, leaving strings as they are. */
+export function stripJsonExtras(text) {
+    const source = text.startsWith("\uFEFF") ? text.slice(1) : text;
+    let strict = "";
+    let index = 0;
+    while (index < source.length) {
+        const character = source.charAt(index);
+        const end = character === "\"" ? findStringEnd(source, index) : findCommentEnd(source, index);
+        if (character === "\"") {
+            strict += source.slice(index, end);
+            index = end;
+        }
+        else if (end > index) {
+            strict += " ";
+            index = end;
+        }
+        else {
+            strict += character === "," && isTrailingComma(source, index) ? " " : character;
+            index += 1;
+        }
+    }
+    return strict;
+}
+/**
+ * Reads a JSON text and returns its value, or undefined when the text is not valid JSON. Strict JSON is tried first;
+ * VS Code also reads a byte order mark, comments and trailing commas in its files, so a file that uses them is read too.
+ */
 export function parseJson(text) {
     try {
         return JSON.parse(text);
+    }
+    catch {
+        return parseJsonWithExtras(text);
+    }
+}
+/** Reads a JSON text after removing its byte order mark, comments and trailing commas, or returns undefined. */
+function parseJsonWithExtras(text) {
+    try {
+        return JSON.parse(stripJsonExtras(text));
     }
     catch {
         return undefined;
