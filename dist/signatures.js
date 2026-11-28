@@ -44,6 +44,6 @@ export const PAYLOAD_FOLDER = /^(?:\.claude|\.cursor|\.gemini|\.vscode)\//u;
 export const SETUP_SCRIPT = /^(?:(?:scripts|\.github)\/)?(?:(?:setup|init)\.(?:c|m)?js|init\.ps1)$/u;
 /** The commands that start a worm payload: a setup or init script, or a script downloaded and piped into a shell. */
 export const PAYLOAD_COMMANDS = [
-    { value: /(?:^|[\s"'/])(?:setup|init)\.(?:c|m)?js\b/u, worm: "Miasma, Mini Shai-Hulud", source: BITDEFENDER },
+    { value: /(?:^|[\s"'/\\])(?:setup|init)\.(?:c|m)?js\b/u, worm: "Miasma, Mini Shai-Hulud", source: BITDEFENDER },
     { value: /\b(?:curl|wget)\b[^|]*\|\s*(?:ba|z)?sh\b/u, worm: "Miasma", source: SAFEDEP_MIASMA },
 ];
