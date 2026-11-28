@@ -14,6 +14,7 @@ import {
   isDropName,
   isInstructionFile,
   isLargeScript,
+  isPayloadCommand,
   parseJson,
   stripJsonExtras,
 } from "../src/rules.js";
@@ -302,6 +303,26 @@ function keepsStringsWhenRemovingJsonExtras(): void {
   expect(parseJson('{"a":1,\n// only a comment')).toBeUndefined();
 }
 
+/** Checks that the whole command line of a task is read: arguments, system blocks and backslash paths. */
+function readsTheWholeCommandLineOfATask(): void {
+  const folderOpen = { runOptions: { runOn: "folderOpen" } };
+  const tasks = [
+    { label: "args", command: "node", args: ["scripts/setup.js", { value: "--quiet", quoting: "strong" }, 3, { value: 4 }], ...folderOpen },
+    { label: "systems", command: "echo hi", windows: { command: "node scripts\\setup.js" }, osx: { options: {} }, linux: "text", ...folderOpen },
+    { label: "no command", args: "not a list", windows: { options: {} }, ...folderOpen },
+  ];
+  expect(findFolderOpenTasks(JSON.stringify({ tasks }))).toEqual([
+    "args: node scripts/setup.js --quiet",
+    "systems: echo hi",
+    "systems (windows): node scripts\\setup.js",
+    "no command:",
+  ]);
+  expect(findFolderOpenTasks(JSON.stringify({ tasks: [{ command: "node", args: ["setup.js"], ...folderOpen }] }))).toEqual(["unnamed task: node setup.js"]);
+  expect(isPayloadCommand("node scripts\\setup.js")).toBe(true);
+  expect(isPayloadCommand("node .vscode\\init.mjs")).toBe(true);
+  expect(isPayloadCommand("node scripts\\mysetup.js")).toBe(false);
+}
+
 /** Groups the tests of the configuration rules. */
 function describeConfigurationRules(): void {
   it("finds the command of a SessionStart hook", findsTheCommandOfASessionStartHook);
@@ -318,6 +339,7 @@ function describeConfigurationRules(): void {
   it("reads escaped keys and deep inline tables", readsEscapedKeysAndDeepInlineTables);
   it("reads past arrays that span lines", readsPastArraysThatSpanLines);
   it("reads the extras that VS Code accepts in JSON", readsJsonWithTheExtrasThatVsCodeAccepts);
+  it("reads the whole command line of a task", readsTheWholeCommandLineOfATask);
   it("keeps strings whole when removing the JSON extras", keepsStringsWhenRemovingJsonExtras);
 }
 

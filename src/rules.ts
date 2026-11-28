@@ -213,14 +213,47 @@ export function findFolderOpenTasks(tasksText: string): string[] {
     return [];
   }
   const autoRunTasks = tasks.tasks.filter(runsOnFolderOpen);
-  return autoRunTasks.map(describeTask);
+  return autoRunTasks.flatMap(describeTask);
 }
 
-/** Returns a short readable name for a VS Code task. */
-function describeTask(task: Record<string, unknown>): string {
+/**
+ * Returns one readable line per command a VS Code task can run: its own, and the one of each system block (`windows`,
+ * `osx`, `linux`) that takes over on that system. A task without any command still gives one line.
+ */
+function describeTask(task: Record<string, unknown>): string[] {
   const label = typeof task.label === "string" ? task.label : "unnamed task";
-  const command = typeof task.command === "string" ? task.command : "";
-  return `${label}: ${command}`.trim();
+  const lines = [`${label}: ${readCommandLine(task)}`.trim()];
+  for (const system of TASK_SYSTEMS) {
+    const block = task[system];
+    const commandLine = isRecord(block) ? readCommandLine(block) : "";
+    if (commandLine !== "") {
+      lines.push(`${label} (${system}): ${commandLine}`);
+    }
+  }
+  return lines;
+}
+
+/** The blocks of a VS Code task that replace its command on one system. */
+const TASK_SYSTEMS = ["windows", "osx", "linux"];
+
+/** Returns the command of a task, or of one of its system blocks, followed by its arguments, as one line. */
+function readCommandLine(block: Record<string, unknown>): string {
+  const command = typeof block.command === "string" ? block.command : "";
+  const argumentList = Array.isArray(block.args) ? block.args.map(readArgument) : [];
+  return [command, ...argumentList].filter(isFilled).join(" ").trim();
+}
+
+/** Returns an argument of a task: a text, or the value of an argument written with its quoting. */
+function readArgument(argument: unknown): string {
+  if (typeof argument === "string") {
+    return argument;
+  }
+  return isRecord(argument) && typeof argument.value === "string" ? argument.value : "";
+}
+
+/** Tells whether a text has something in it. */
+function isFilled(text: string): boolean {
+  return text !== "";
 }
 
 /** Returns the commands of the local MCP servers declared in a configuration file. */
