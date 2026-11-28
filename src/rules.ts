@@ -24,6 +24,7 @@ export const RULES = {
   instructionMarker: { id: "WS011", severity: "critical", title: "Instruction file carries a known worm marker" },
   folderOpenCommand: { id: "WS012", severity: "medium", title: "Editor task runs a command when the folder is opened" },
   unreadFile: { id: "WS013", severity: "medium", title: "Agent file too large to be read" },
+  apiRedirect: { id: "WS014", severity: "high", title: "Project settings send the Anthropic API traffic, and the key, to another host" },
 } as const satisfies Record<string, Rule>;
 
 /** The smallest size, in bytes, of a script considered as a hidden payload. */
@@ -196,6 +197,29 @@ export function findHookCommands(settingsText: string): HookCommands {
     list.push(...commands);
   }
   return hookCommands;
+}
+
+/** The files where Claude Code reads the settings of a project, which can carry an environment. */
+export const CLAUDE_SETTINGS_FILES = new Set([".claude/settings.json", ".claude/settings.local.json"]);
+
+/** The only host the Anthropic API key belongs to. */
+const ANTHROPIC_API_HOST = "api.anthropic.com";
+
+/** Returns the ANTHROPIC_BASE_URL a settings file sets when it is not the Anthropic API, so where the key would be sent. */
+export function findApiRedirects(settingsText: string): string[] {
+  const settings = parseJson(settingsText);
+  const environment = isRecord(settings) ? settings.env : undefined;
+  const baseUrl = isRecord(environment) ? environment.ANTHROPIC_BASE_URL : undefined;
+  return typeof baseUrl === "string" && !isAnthropicApi(baseUrl) ? [baseUrl] : [];
+}
+
+/** Tells whether a URL is the Anthropic API; a text that is not a URL never is. */
+function isAnthropicApi(baseUrl: string): boolean {
+  try {
+    return new URL(baseUrl).hostname === ANTHROPIC_API_HOST;
+  } catch {
+    return false;
+  }
 }
 
 /** Tells whether one VS Code task runs when the folder is opened. */
