@@ -72,6 +72,11 @@ export declare const RULES: {
         readonly severity: "medium";
         readonly title: "Agent file too large to be read";
     };
+    readonly apiRedirect: {
+        readonly id: "WS014";
+        readonly severity: "high";
+        readonly title: "Project settings send the Anthropic API traffic, and the key, to another host";
+    };
 };
 /** The smallest size, in bytes, of a script considered as a hidden payload. */
 export declare const LARGE_SCRIPT_BYTES = 500000;
@@ -105,6 +110,10 @@ export interface HookCommands {
 }
 /** Returns the commands that agent hooks would run, from the text of a settings file, split by the moment they run. */
 export declare function findHookCommands(settingsText: string): HookCommands;
+/** The files where Claude Code reads the settings of a project, which can carry an environment. */
+export declare const CLAUDE_SETTINGS_FILES: Set<string>;
+/** Returns the ANTHROPIC_BASE_URL a settings file sets when it is not the Anthropic API, so where the key would be sent. */
+export declare function findApiRedirects(settingsText: string): string[];
 /** Returns the labels of the VS Code tasks that run when the folder is opened. */
 export declare function findFolderOpenTasks(tasksText: string): string[];
 /** Returns the commands of the local MCP servers declared in a configuration file. */

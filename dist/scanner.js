@@ -1,5 +1,5 @@
 import { getCommit, getFileText, getTree, listBranches } from "./github.js";
-import { BACKDATED_DAYS, HOOK_FILES, MCP_FILES, MCP_TOML_FILES, RULES, TASKS_FILE, daysBeforePush, findFolderOpenTasks, findHookCommands, findInjectionPhrases, findMcpCommands, findMcpTomlCommands, hasInstructionMarker, hasInvisibleCharacters, hasWormMarker, isDropDescription, isDropName, isInstructionFile, isLargeScript, isPayloadCommand, } from "./rules.js";
+import { BACKDATED_DAYS, HOOK_FILES, CLAUDE_SETTINGS_FILES, MCP_FILES, MCP_TOML_FILES, RULES, TASKS_FILE, daysBeforePush, findApiRedirects, findFolderOpenTasks, findHookCommands, findInjectionPhrases, findMcpCommands, findMcpTomlCommands, hasInstructionMarker, hasInvisibleCharacters, hasWormMarker, isDropDescription, isDropName, isInstructionFile, isLargeScript, isPayloadCommand, } from "./rules.js";
 /** The default highest number of branches read per repository. */
 export const DEFAULT_MAX_BRANCHES = 20;
 /** The rules whose findings mean that code can run when the folder is opened. */
@@ -33,6 +33,9 @@ export function checkFileText(path, text, place) {
         const otherHooks = [...hookCommands.sessionStart.filter(isOrdinaryCommand), ...hookCommands.otherEvents];
         findings.push(...checkCommands(RULES.agentHook, payloadHooks, filePlace));
         findings.push(...checkCommands(RULES.toolHook, otherHooks, filePlace));
+    }
+    if (CLAUDE_SETTINGS_FILES.has(path)) {
+        findings.push(...checkCommands(RULES.apiRedirect, findApiRedirects(text), filePlace));
     }
     if (path === TASKS_FILE) {
         const tasks = findFolderOpenTasks(text);

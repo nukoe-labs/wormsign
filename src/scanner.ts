@@ -2,11 +2,13 @@ import { getCommit, getFileText, getTree, listBranches, type GitHubClient } from
 import {
   BACKDATED_DAYS,
   HOOK_FILES,
+  CLAUDE_SETTINGS_FILES,
   MCP_FILES,
   MCP_TOML_FILES,
   RULES,
   TASKS_FILE,
   daysBeforePush,
+  findApiRedirects,
   findFolderOpenTasks,
   findHookCommands,
   findInjectionPhrases,
@@ -76,6 +78,9 @@ export function checkFileText(path: string, text: string, place: Place): Finding
     const otherHooks = [...hookCommands.sessionStart.filter(isOrdinaryCommand), ...hookCommands.otherEvents];
     findings.push(...checkCommands(RULES.agentHook, payloadHooks, filePlace));
     findings.push(...checkCommands(RULES.toolHook, otherHooks, filePlace));
+  }
+  if (CLAUDE_SETTINGS_FILES.has(path)) {
+    findings.push(...checkCommands(RULES.apiRedirect, findApiRedirects(text), filePlace));
   }
   if (path === TASKS_FILE) {
     const tasks = findFolderOpenTasks(text);

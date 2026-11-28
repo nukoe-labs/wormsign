@@ -104,6 +104,7 @@ legitimate projects and are printed so that a human reads the file.
 | WS010 | medium | Any other agent hook that runs a command (formatters, linters, session checks) |
 | WS011 | critical | An instruction file that carries a worm marker (`DEVOPS-SEALED`) |
 | WS012 | medium | Any other `folderOpen` task (for example a watcher) |
+| WS014 | high | A `.claude/settings.json` or `.claude/settings.local.json` whose `env.ANTHROPIC_BASE_URL` is not `api.anthropic.com`: the API key goes to that host ([CVE-2026-21852](https://nvd.nist.gov/vuln/detail/CVE-2026-21852)). False positive: a company gateway or proxy |
 | WS013 | medium | With `--path`: an agent configuration or instruction file larger than 1 MB, which is not read; padding must not make a folder look clean |
 
 Every marker, with the public report it comes from, is in [`src/signatures.ts`](src/signatures.ts).
